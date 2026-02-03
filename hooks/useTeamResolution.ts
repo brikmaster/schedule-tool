@@ -37,6 +37,16 @@ export function useTeamResolution() {
 
         const allHomeTeams = homeResponse.result?.collections?.teamCollection?.list || [];
 
+        console.log(`[Team Resolution] Home team "${game.homeTeam.originalText}":`, {
+          totalResults: allHomeTeams.length,
+          state: homeState,
+          orgId: state.defaults.orgId,
+          firstTeam: allHomeTeams[0] ? {
+            name: allHomeTeams[0].teamName,
+            orgId: allHomeTeams[0].orgId || allHomeTeams[0].organizationId || 'N/A'
+          } : 'None'
+        });
+
         // Filter results to only include teams from the selected organization
         const filteredHomeTeams = allHomeTeams.filter((team: any) => {
           // Check multiple possible orgId field names
@@ -48,6 +58,12 @@ export function useTeamResolution() {
 
           // If no orgId found on team, exclude it to be safe
           return false;
+        });
+
+        console.log(`[Team Resolution] After org filter:`, {
+          before: allHomeTeams.length,
+          after: filteredHomeTeams.length,
+          expectedOrgId: state.defaults.orgId
         });
 
         const homeResolution = autoMatchTeam(
@@ -67,7 +83,7 @@ export function useTeamResolution() {
         completed++;
         setProgress(Math.round((completed / totalSearches) * 100));
       } catch (error) {
-        console.error("Error resolving home team:", error);
+        console.error(`[Team Resolution] Error resolving home team "${game.homeTeam.originalText}":`, error);
         dispatch({
           type: "UPDATE_TEAM_RESOLUTION",
           gameId: game.id,
