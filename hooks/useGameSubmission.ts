@@ -101,24 +101,27 @@ export function useGameSubmission() {
             const gameData = gameDetails.result.collections.gameCollection.list[0];
             const boxScores = gameData.boxScores || [];
 
+            console.log(`[Score Submission] Full game data:`, JSON.stringify(gameData, null, 2));
             console.log(`[Score Submission] Box scores:`, boxScores);
             console.log(`[Score Submission] Number of segments:`, boxScores.length);
-            boxScores.forEach((seg, idx) => {
-              console.log(`[Score Submission] Segment ${idx}:`, seg);
-            });
 
             if (boxScores.length === 0) {
               throw new Error("No game segments found in boxScores");
             }
 
-            // Need to find the "Final" segment, not "Total"
-            // The second-to-last segment might be "Final" if the last is "Total"
-            // Let's use the second-to-last for now
-            const finalSegment = boxScores.length > 1
-              ? boxScores[boxScores.length - 2]
-              : boxScores[boxScores.length - 1];
+            // For basketball with quarters, the segments are typically:
+            // 0: 1st Quarter (10010)
+            // 1: 2nd Quarter (10020)
+            // 2: 3rd Quarter (10030)
+            // 3: 4th Quarter (10040)
+            // 4: Total (19888)
+            // 5: Final (19999 or similar)
+            //
+            // User says "Final is after Total", so we need the very last segment
+            // if there are more than 5 segments, otherwise fall back to last
+            const finalSegment = boxScores[boxScores.length - 1];
 
-            console.log(`[Score Submission] Using segment at index ${boxScores.length > 1 ? boxScores.length - 2 : boxScores.length - 1}`);
+            console.log(`[Score Submission] Using last segment at index ${boxScores.length - 1}`);
             console.log(`[Score Submission] Selected segment ID ${finalSegment.gameSegmentId}`);
 
             const scoreResponse = await addScore({
