@@ -90,6 +90,13 @@ export function useGameSubmission() {
               gameIds: [response.result.gameId],
             });
 
+            console.log(`[Score Submission] Full API response:`, gameDetails);
+
+            // Check if response has the expected structure
+            if (!gameDetails || !gameDetails.result || !gameDetails.result.games || gameDetails.result.games.length === 0) {
+              throw new Error(`Invalid API response structure: ${JSON.stringify(gameDetails)}`);
+            }
+
             // Find the final segment - check both 'segments' and 'gameSegments' fields
             const gameData = gameDetails.result.games[0];
             const segments = gameData.segments || gameData.gameSegments || [];

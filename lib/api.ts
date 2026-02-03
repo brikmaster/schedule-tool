@@ -154,10 +154,14 @@ export async function addScore(
 export async function getGame(
   params: Omit<GamesGetRequest, "apiKey">
 ): Promise<GamesGetResponse> {
+  console.log('[API] games.get request:', { gameIds: params.gameIds });
+
   const response = await jsonRpcCall<GamesGetResponse>(
     "games.get",
     { gameIds: params.gameIds }
   );
+
+  console.log('[API] games.get response:', JSON.stringify(response, null, 2));
 
   return response;
 }
