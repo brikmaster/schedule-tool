@@ -93,24 +93,24 @@ export function useGameSubmission() {
             console.log(`[Score Submission] Full API response:`, gameDetails);
 
             // Check if response has the expected structure
-            if (!gameDetails || !gameDetails.result || !gameDetails.result.games || gameDetails.result.games.length === 0) {
+            if (!gameDetails?.result?.collections?.gameCollection?.list?.[0]) {
               throw new Error(`Invalid API response structure: ${JSON.stringify(gameDetails)}`);
             }
 
-            // Find the final segment - check both 'segments' and 'gameSegments' fields
-            const gameData = gameDetails.result.games[0];
-            const segments = gameData.segments || gameData.gameSegments || [];
+            // Get the game data from the actual response structure
+            const gameData = gameDetails.result.collections.gameCollection.list[0];
+            const boxScores = gameData.boxScores || [];
 
-            console.log(`[Score Submission] Game segments:`, segments);
+            console.log(`[Score Submission] Box scores:`, boxScores);
 
-            // Try to find a segment marked as final, otherwise use the last segment
-            const finalSegment = segments.find(s => s.isFinal) || segments[segments.length - 1];
-
-            if (!finalSegment) {
-              throw new Error("No game segments found");
+            if (boxScores.length === 0) {
+              throw new Error("No game segments found in boxScores");
             }
 
-            console.log(`[Score Submission] Using segment ID ${finalSegment.gameSegmentId} (${finalSegment.segmentName})`);
+            // The last segment in boxScores is the final/summary segment
+            const finalSegment = boxScores[boxScores.length - 1];
+
+            console.log(`[Score Submission] Using final segment ID ${finalSegment.gameSegmentId}`);
 
             const scoreResponse = await addScore({
               accessToken: process.env.NEXT_PUBLIC_SCORESTREAM_ACCESS_TOKEN || "",

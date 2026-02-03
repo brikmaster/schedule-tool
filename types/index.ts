@@ -196,17 +196,22 @@ export interface GamesGetRequest {
 
 export interface GameSegment {
   gameSegmentId: number;
-  segmentName: string;
-  isFinal?: boolean;
+  segmentName?: string;
+  awayTeamScore?: number;
+  homeTeamScore?: number;
 }
 
 export interface GamesGetResponse {
   result: {
-    games: Array<{
-      gameId: number;
-      segments?: GameSegment[];
-      gameSegments?: GameSegment[];
-      [key: string]: any;
-    }>;
+    gameIds: number[];
+    collections: {
+      gameCollection: {
+        list: Array<{
+          gameId: number;
+          boxScores?: GameSegment[];
+          [key: string]: any;
+        }>;
+      };
+    };
   };
 }
