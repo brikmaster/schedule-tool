@@ -131,10 +131,20 @@ export async function addScore(
     gameSegmentId: params.gameSegmentId,
   };
 
+  console.log('[API] games.scores.add request:', {
+    gameId: params.gameId,
+    homeTeamScore: params.homeTeamScore,
+    awayTeamScore: params.awayTeamScore,
+    gameSegmentId: params.gameSegmentId,
+    hasAccessToken: !!params.accessToken,
+  });
+
   const response = await jsonRpcCall<GamesScoresAddResponse>(
     "games.scores.add",
     scoreParams
   );
+
+  console.log('[API] games.scores.add response:', response);
 
   return response;
 }

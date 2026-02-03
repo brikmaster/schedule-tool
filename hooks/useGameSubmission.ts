@@ -76,15 +76,23 @@ export function useGameSubmission() {
 
         if (hasScores && !response.result.isDuplicate) {
           try {
-            await addScore({
+            console.log(`[Score Submission] Adding score for game ${response.result.gameId}:`, {
+              homeScore: game.homeScore,
+              awayScore: game.awayScore,
+              gameSegmentId: FINAL_SEGMENT_ID,
+            });
+
+            const scoreResponse = await addScore({
               accessToken: process.env.NEXT_PUBLIC_SCORESTREAM_ACCESS_TOKEN || "",
               gameId: response.result.gameId,
               homeTeamScore: game.homeScore!,
               awayTeamScore: game.awayScore!,
               gameSegmentId: FINAL_SEGMENT_ID,
             });
+
+            console.log(`[Score Submission] Success for game ${response.result.gameId}:`, scoreResponse);
           } catch (scoreError) {
-            console.error("Failed to add score:", scoreError);
+            console.error(`[Score Submission] Failed for game ${response.result.gameId}:`, scoreError);
             // Continue even if score fails - game is still created
           }
         }
