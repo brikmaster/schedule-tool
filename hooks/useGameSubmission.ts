@@ -3,6 +3,7 @@ import { useAppState } from "./useAppState";
 import { addGame, addScore, getGame } from "@/lib/api";
 import { SubmissionResult } from "@/types";
 import { FINAL_SEGMENT_ID } from "@/lib/constants";
+import { selectFinalSegment } from "@/lib/utils/segmentSelector";
 
 export function useGameSubmission() {
   const { state, dispatch } = useAppState();
@@ -109,27 +110,41 @@ export function useGameSubmission() {
               throw new Error("No game segments found in boxScores");
             }
 
+            // Log all segment details for debugging
+            boxScores.forEach((seg, idx) => {
+              console.log(`[Score Submission] Segment ${idx}:`, {
+                id: seg.gameSegmentId,
+                name: seg.segmentName,
+                homeScore: seg.homeTeamScore,
+                awayScore: seg.awayTeamScore
+              });
+            });
+
             // For basketball with quarters, the segments are typically:
             // 0: 1st Quarter (10010)
             // 1: 2nd Quarter (10020)
             // 2: 3rd Quarter (10030)
             // 3: 4th Quarter (10040)
             // 4: Total (19888)
-            // 5: Final (19999 or similar)
+            // Final (19999) - Often NOT included in boxScores array
             //
-            // User says "Final is after Total", so we need the very last segment
-            // if there are more than 5 segments, otherwise fall back to last
-            const finalSegment = boxScores[boxScores.length - 1];
+            // User confirmed "Final comes after Total", so we use segment ID 19999
+            // Don't use boxScores.length-1 because that's Total, not Final!
 
-            console.log(`[Score Submission] Using last segment at index ${boxScores.length - 1}`);
-            console.log(`[Score Submission] Selected segment ID ${finalSegment.gameSegmentId}`);
+            const selection = selectFinalSegment(boxScores);
+
+            console.log(`[Score Submission] Selected segment using strategy: ${selection.source}`);
+            console.log(`[Score Submission] Selected segment ID: ${selection.gameSegmentId}`);
+            if (selection.segmentName) {
+              console.log(`[Score Submission] Selected segment name: ${selection.segmentName}`);
+            }
 
             const scoreResponse = await addScore({
               accessToken: process.env.NEXT_PUBLIC_SCORESTREAM_ACCESS_TOKEN || "",
               gameId: response.result.gameId,
               homeTeamScore: game.homeScore!,
               awayTeamScore: game.awayScore!,
-              gameSegmentId: finalSegment.gameSegmentId,
+              gameSegmentId: selection.gameSegmentId,
             });
 
             console.log(`[Score Submission] Success for game ${response.result.gameId}:`, scoreResponse);

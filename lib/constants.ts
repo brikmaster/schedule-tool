@@ -92,7 +92,8 @@ export function getDefaultSegmentType(sport: SportName): SegmentType {
 }
 
 // Final score segment ID (used when adding final scores to completed games)
-export const FINAL_SEGMENT_ID = 1000;
+export const FINAL_SEGMENT_ID = 19999; // Final segment (comes after Total 19888)
+export const TOTAL_SEGMENT_ID = 19888; // Total segment
 
 // Common timezones
 export const TIMEZONES = [
