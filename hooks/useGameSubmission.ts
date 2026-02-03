@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAppState } from "./useAppState";
-import { addGame, addScore } from "@/lib/api";
+import { addGame, addScore, getGame } from "@/lib/api";
 import { SubmissionResult } from "@/types";
 import { FINAL_SEGMENT_ID } from "@/lib/constants";
 
@@ -84,18 +84,33 @@ export function useGameSubmission() {
 
         if (hasScores && !response.result.isDuplicate) {
           try {
-            console.log(`[Score Submission] Adding score for game ${response.result.gameId}:`, {
-              homeScore: game.homeScore,
-              awayScore: game.awayScore,
-              gameSegmentId: FINAL_SEGMENT_ID,
+            // First, fetch the game to get the correct segment IDs
+            console.log(`[Score Submission] Fetching game segments for game ${response.result.gameId}`);
+            const gameDetails = await getGame({
+              gameIds: [response.result.gameId],
             });
+
+            // Find the final segment - check both 'segments' and 'gameSegments' fields
+            const gameData = gameDetails.result.games[0];
+            const segments = gameData.segments || gameData.gameSegments || [];
+
+            console.log(`[Score Submission] Game segments:`, segments);
+
+            // Try to find a segment marked as final, otherwise use the last segment
+            const finalSegment = segments.find(s => s.isFinal) || segments[segments.length - 1];
+
+            if (!finalSegment) {
+              throw new Error("No game segments found");
+            }
+
+            console.log(`[Score Submission] Using segment ID ${finalSegment.gameSegmentId} (${finalSegment.segmentName})`);
 
             const scoreResponse = await addScore({
               accessToken: process.env.NEXT_PUBLIC_SCORESTREAM_ACCESS_TOKEN || "",
               gameId: response.result.gameId,
               homeTeamScore: game.homeScore!,
               awayTeamScore: game.awayScore!,
-              gameSegmentId: FINAL_SEGMENT_ID,
+              gameSegmentId: finalSegment.gameSegmentId,
             });
 
             console.log(`[Score Submission] Success for game ${response.result.gameId}:`, scoreResponse);

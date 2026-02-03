@@ -188,3 +188,25 @@ export interface GamesScoresAddResponse {
     scoreId?: number;
   };
 }
+
+export interface GamesGetRequest {
+  gameIds: number[];
+  apiKey: string;
+}
+
+export interface GameSegment {
+  gameSegmentId: number;
+  segmentName: string;
+  isFinal?: boolean;
+}
+
+export interface GamesGetResponse {
+  result: {
+    games: Array<{
+      gameId: number;
+      segments?: GameSegment[];
+      gameSegments?: GameSegment[];
+      [key: string]: any;
+    }>;
+  };
+}
