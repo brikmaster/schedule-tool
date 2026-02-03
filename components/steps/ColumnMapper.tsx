@@ -20,6 +20,11 @@ export default function ColumnMapper() {
   }, [state.headers]);
 
   const handleNext = () => {
+    console.log('[Column Mapper] Score columns mapped:', {
+      homeScore: state.columnMapping.homeScore,
+      awayScore: state.columnMapping.awayScore,
+    });
+
     // Create games from raw data
     const games: GameRow[] = state.rawData.map((row, index) => {
       // Parse scores if columns are mapped
@@ -28,6 +33,16 @@ export default function ColumnMapper() {
 
       const homeScore = homeScoreStr ? parseInt(homeScoreStr, 10) : null;
       const awayScore = awayScoreStr ? parseInt(awayScoreStr, 10) : null;
+
+      if (index < 3) {
+        console.log(`[Column Mapper] Game ${index + 1} scores:`, {
+          homeScoreStr,
+          awayScoreStr,
+          homeScore,
+          awayScore,
+          isNaN: isNaN(homeScore!),
+        });
+      }
 
       return {
         id: `game-${index}`,

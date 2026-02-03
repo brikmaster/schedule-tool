@@ -47,6 +47,14 @@ export function useGameSubmission() {
       setCurrentGame(i + 1);
 
       try {
+        console.log(`[Game Submission] Processing game ${i + 1}:`, {
+          homeTeam: game.homeTeam.selectedTeam?.teamName,
+          awayTeam: game.awayTeam.selectedTeam?.teamName,
+          homeScore: game.homeScore,
+          awayScore: game.awayScore,
+          hasScores: game.homeScore !== null && game.homeScore !== undefined && game.awayScore !== null && game.awayScore !== undefined,
+        });
+
         if (!game.homeTeam.selectedTeam || !game.awayTeam.selectedTeam) {
           throw new Error("Missing team selection");
         }
