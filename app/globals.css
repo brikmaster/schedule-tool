@@ -1,26 +1,124 @@
 @import "tailwindcss";
 
+/* ScoreStream Design System */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand Colors */
+  --ss-primary: #29B6F6;        /* Header, links, accents */
+  --ss-primary-dark: #0288D1;   /* Button hover */
+  --ss-button: #2196F3;         /* Primary action buttons */
+  --ss-background: #ECEFF1;     /* Page background */
+  --ss-card: #FFFFFF;           /* Card backgrounds */
+  --ss-text: #37474F;           /* Primary text */
+  --ss-text-light: #78909C;     /* Helper text, placeholders */
+  --ss-border: #CFD8DC;         /* Input borders */
+
+  /* Status Colors */
+  --ss-success: #4CAF50;        /* 🟢 Verified */
+  --ss-warning: #FF9800;        /* 🟡 Ambiguous */
+  --ss-error: #F44336;          /* 🔴 Error */
+
+  /* Spacing */
+  --ss-card-padding: 2rem;
+  --ss-input-padding: 0.75rem;
+
+  /* Border Radius */
+  --ss-radius: 4px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--ss-background);
+  --color-foreground: var(--ss-text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--ss-background);
+  color: var(--ss-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  padding: 0;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Base Component Styles */
+.ss-card {
+  background: var(--ss-card);
+  border-radius: var(--ss-radius);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: var(--ss-card-padding);
+}
+
+.ss-input {
+  border: 1px solid var(--ss-border);
+  border-radius: var(--ss-radius);
+  padding: var(--ss-input-padding);
+  font-size: 0.875rem;
+  color: var(--ss-text);
+  background: white;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+.ss-input:focus {
+  outline: none;
+  border-color: var(--ss-primary);
+}
+
+.ss-input::placeholder {
+  color: var(--ss-text-light);
+}
+
+.ss-button-primary {
+  background: var(--ss-button);
+  color: white;
+  border: none;
+  border-radius: var(--ss-radius);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.ss-button-primary:hover {
+  background: var(--ss-primary-dark);
+}
+
+.ss-button-primary:disabled {
+  background: var(--ss-border);
+  cursor: not-allowed;
+}
+
+.ss-button-secondary {
+  background: transparent;
+  color: var(--ss-primary);
+  border: 1px solid var(--ss-primary);
+  border-radius: var(--ss-radius);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ss-button-secondary:hover {
+  background: rgba(41, 182, 246, 0.1);
+}
+
+.ss-link {
+  color: var(--ss-primary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.ss-link:hover {
+  text-decoration: underline;
+}
+
+.ss-header {
+  background: var(--ss-primary);
+  color: white;
+  padding: 0.75rem 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
