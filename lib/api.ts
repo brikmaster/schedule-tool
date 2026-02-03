@@ -13,13 +13,6 @@ const API_URL = process.env.NEXT_PUBLIC_SCORESTREAM_API_URL || "https://scorestr
 const API_KEY = process.env.NEXT_PUBLIC_SCORESTREAM_API_KEY || "";
 const ACCESS_TOKEN = process.env.NEXT_PUBLIC_SCORESTREAM_ACCESS_TOKEN || "";
 
-// Debug: Log if credentials are missing (only first 4 chars for security)
-if (typeof window !== 'undefined') {
-  console.log('[API Debug] URL:', API_URL);
-  console.log('[API Debug] API_KEY:', API_KEY ? API_KEY.substring(0, 4) + '...' : 'MISSING');
-  console.log('[API Debug] ACCESS_TOKEN:', ACCESS_TOKEN ? ACCESS_TOKEN.substring(0, 4) + '...' : 'MISSING');
-}
-
 // JSON-RPC 2.0 wrapper
 async function jsonRpcCall<T>(method: string, params: Record<string, any>): Promise<T> {
   const requestBody = {
@@ -32,13 +25,6 @@ async function jsonRpcCall<T>(method: string, params: Record<string, any>): Prom
     },
     id: Date.now(),
   };
-
-  console.log('[API Debug] Request:', {
-    method,
-    params: params,
-    hasApiKey: !!API_KEY,
-    hasAccessToken: !!ACCESS_TOKEN
-  });
 
   const response = await fetch(API_URL, {
     method: "POST",
@@ -54,18 +40,7 @@ async function jsonRpcCall<T>(method: string, params: Record<string, any>): Prom
 
   const json = await response.json();
 
-  // Debug: Log API response
-  console.log('[API Debug] Response:', {
-    method,
-    status: response.status,
-    hasError: !!json.error,
-    hasResult: !!json.result,
-    resultPreview: json.result ? Object.keys(json.result) : 'N/A',
-    paramErrors: json.result?.paramErrors || 'None'
-  });
-
   if (json.error) {
-    console.error('[API Debug] API Error:', json.error);
     throw new Error(json.error.message || "API error occurred");
   }
 

@@ -41,16 +41,6 @@ export function useTeamResolution() {
 
         const allHomeTeams = homeResponse.result?.collections?.teamCollection?.list || [];
 
-        console.log(`[Team Resolution] Home team "${game.homeTeam.originalText}":`, {
-          totalResults: allHomeTeams.length,
-          state: homeState,
-          orgId: state.defaults.orgId,
-          firstTeam: allHomeTeams[0] ? {
-            name: allHomeTeams[0].teamName,
-            orgId: (allHomeTeams[0] as any).orgId || (allHomeTeams[0] as any).organizationId || 'N/A'
-          } : 'None'
-        });
-
         // Filter results to only include teams from the selected organization
         const filteredHomeTeams = allHomeTeams.filter((team: any) => {
           // Check multiple possible orgId field names
@@ -62,12 +52,6 @@ export function useTeamResolution() {
 
           // If no orgId found on team, exclude it to be safe
           return false;
-        });
-
-        console.log(`[Team Resolution] After org filter:`, {
-          before: allHomeTeams.length,
-          after: filteredHomeTeams.length,
-          expectedOrgId: state.defaults.orgId
         });
 
         const homeResolution = autoMatchTeam(
