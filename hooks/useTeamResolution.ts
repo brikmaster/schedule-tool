@@ -43,7 +43,7 @@ export function useTeamResolution() {
           orgId: state.defaults.orgId,
           firstTeam: allHomeTeams[0] ? {
             name: allHomeTeams[0].teamName,
-            orgId: allHomeTeams[0].orgId || allHomeTeams[0].organizationId || 'N/A'
+            orgId: (allHomeTeams[0] as any).orgId || (allHomeTeams[0] as any).organizationId || 'N/A'
           } : 'None'
         });
 
