@@ -102,15 +102,24 @@ export function useGameSubmission() {
             const boxScores = gameData.boxScores || [];
 
             console.log(`[Score Submission] Box scores:`, boxScores);
+            console.log(`[Score Submission] Number of segments:`, boxScores.length);
+            boxScores.forEach((seg, idx) => {
+              console.log(`[Score Submission] Segment ${idx}:`, seg);
+            });
 
             if (boxScores.length === 0) {
               throw new Error("No game segments found in boxScores");
             }
 
-            // The last segment in boxScores is the final/summary segment
-            const finalSegment = boxScores[boxScores.length - 1];
+            // Need to find the "Final" segment, not "Total"
+            // The second-to-last segment might be "Final" if the last is "Total"
+            // Let's use the second-to-last for now
+            const finalSegment = boxScores.length > 1
+              ? boxScores[boxScores.length - 2]
+              : boxScores[boxScores.length - 1];
 
-            console.log(`[Score Submission] Using final segment ID ${finalSegment.gameSegmentId}`);
+            console.log(`[Score Submission] Using segment at index ${boxScores.length > 1 ? boxScores.length - 2 : boxScores.length - 1}`);
+            console.log(`[Score Submission] Selected segment ID ${finalSegment.gameSegmentId}`);
 
             const scoreResponse = await addScore({
               accessToken: process.env.NEXT_PUBLIC_SCORESTREAM_ACCESS_TOKEN || "",
