@@ -80,16 +80,19 @@ export async function searchTeams(
     throw new Error("Team name must be between 3 and 256 characters");
   }
 
-  const searchParams: Omit<TeamsSearchRequest, "apiKey"> = {
+  // Build search params, filtering out undefined values
+  const searchParams: any = {
     teamName: params.teamName,
-    city: params.city,
-    state: params.state,
     country: params.country || "US",
-    orgId: params.orgId,
     recommendedFor: "addingGames",
     ignoreUserCreatedTeams: true,
     count: params.count || 10,
   };
+
+  // Only add optional params if they have values
+  if (params.city) searchParams.city = params.city;
+  if (params.state) searchParams.state = params.state;
+  if (params.orgId) searchParams.orgId = params.orgId;
 
   const response = await jsonRpcCall<TeamsSearchResponse>(
     "teams.search",
