@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppState } from "./useAppState";
 import { searchTeams } from "@/lib/api";
 import { autoMatchTeam } from "@/lib/confidence";
+import { parseTeamName } from "@/lib/utils/teamNameParser";
 
 export function useTeamResolution() {
   const { state, dispatch } = useAppState();
@@ -18,15 +19,18 @@ export function useTeamResolution() {
     for (const game of state.games) {
       // Resolve home team
       try {
-        const homeCity = state.rawData[game.rowIndex]?.[
-          state.columnMapping.homeCity || ""
-        ];
-        const homeState = state.rawData[game.rowIndex]?.[
-          state.columnMapping.homeState || ""
-        ] || state.defaults.state || "";
+        // Parse team name for embedded location info (e.g., "Sierra(Manteca, CA)")
+        const parsedHome = parseTeamName(game.homeTeam.originalText);
+
+        // Use parsed location if available, otherwise fall back to CSV columns or defaults
+        const homeCity = parsedHome.city ||
+          state.rawData[game.rowIndex]?.[state.columnMapping.homeCity || ""];
+        const homeState = parsedHome.state ||
+          state.rawData[game.rowIndex]?.[state.columnMapping.homeState || ""] ||
+          state.defaults.state || "";
 
         const homeResponse = await searchTeams({
-          teamName: game.homeTeam.originalText,
+          teamName: parsedHome.teamName,
           city: homeCity,
           state: homeState,
           orgId: state.defaults.orgId || undefined,
@@ -68,7 +72,7 @@ export function useTeamResolution() {
 
         const homeResolution = autoMatchTeam(
           filteredHomeTeams,
-          game.homeTeam.originalText,
+          parsedHome.teamName,
           homeCity,
           homeState
         );
@@ -99,15 +103,18 @@ export function useTeamResolution() {
 
       // Resolve away team
       try {
-        const awayCity = state.rawData[game.rowIndex]?.[
-          state.columnMapping.awayCity || ""
-        ];
-        const awayState = state.rawData[game.rowIndex]?.[
-          state.columnMapping.awayState || ""
-        ] || state.defaults.state || "";
+        // Parse team name for embedded location info (e.g., "Sierra(Manteca, CA)")
+        const parsedAway = parseTeamName(game.awayTeam.originalText);
+
+        // Use parsed location if available, otherwise fall back to CSV columns or defaults
+        const awayCity = parsedAway.city ||
+          state.rawData[game.rowIndex]?.[state.columnMapping.awayCity || ""];
+        const awayState = parsedAway.state ||
+          state.rawData[game.rowIndex]?.[state.columnMapping.awayState || ""] ||
+          state.defaults.state || "";
 
         const awayResponse = await searchTeams({
-          teamName: game.awayTeam.originalText,
+          teamName: parsedAway.teamName,
           city: awayCity,
           state: awayState,
           orgId: state.defaults.orgId || undefined,
@@ -133,7 +140,7 @@ export function useTeamResolution() {
 
         const awayResolution = autoMatchTeam(
           filteredAwayTeams,
-          game.awayTeam.originalText,
+          parsedAway.teamName,
           awayCity,
           awayState
         );
