@@ -13,6 +13,13 @@ const API_URL = process.env.NEXT_PUBLIC_SCORESTREAM_API_URL || "https://scorestr
 const API_KEY = process.env.NEXT_PUBLIC_SCORESTREAM_API_KEY || "";
 const ACCESS_TOKEN = process.env.NEXT_PUBLIC_SCORESTREAM_ACCESS_TOKEN || "";
 
+// Debug: Log if credentials are missing (only first 4 chars for security)
+if (typeof window !== 'undefined') {
+  console.log('[API Debug] URL:', API_URL);
+  console.log('[API Debug] API_KEY:', API_KEY ? API_KEY.substring(0, 4) + '...' : 'MISSING');
+  console.log('[API Debug] ACCESS_TOKEN:', ACCESS_TOKEN ? ACCESS_TOKEN.substring(0, 4) + '...' : 'MISSING');
+}
+
 // JSON-RPC 2.0 wrapper
 async function jsonRpcCall<T>(method: string, params: Record<string, any>): Promise<T> {
   const response = await fetch(API_URL, {
