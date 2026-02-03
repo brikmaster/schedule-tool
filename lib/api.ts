@@ -35,7 +35,7 @@ async function jsonRpcCall<T>(method: string, params: Record<string, any>): Prom
 
   console.log('[API Debug] Request:', {
     method,
-    teamName: params.teamName,
+    params: params,
     hasApiKey: !!API_KEY,
     hasAccessToken: !!ACCESS_TOKEN
   });
@@ -60,7 +60,8 @@ async function jsonRpcCall<T>(method: string, params: Record<string, any>): Prom
     status: response.status,
     hasError: !!json.error,
     hasResult: !!json.result,
-    resultPreview: json.result ? Object.keys(json.result) : 'N/A'
+    resultPreview: json.result ? Object.keys(json.result) : 'N/A',
+    paramErrors: json.result?.paramErrors || 'None'
   });
 
   if (json.error) {
