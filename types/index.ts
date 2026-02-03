@@ -57,6 +57,8 @@ export interface AppState {
     homeState?: string | null;
     awayCity?: string | null;
     awayState?: string | null;
+    homeScore?: string | null;
+    awayScore?: string | null;
   };
   games: GameRow[];
   submission: {
@@ -73,6 +75,8 @@ export interface GameRow {
   time: string | null;
   homeTeam: TeamResolution;
   awayTeam: TeamResolution;
+  homeScore?: number | null;
+  awayScore?: number | null;
   status: GameStatus;
   selected: boolean;
 }
@@ -166,5 +170,21 @@ export interface GamesAddResponse {
     gameId: number;
     url: string;
     isDuplicate?: boolean;
+  };
+}
+
+export interface GamesScoresAddRequest {
+  accessToken: string;
+  gameId: number;
+  homeTeamScore?: number;
+  awayTeamScore?: number;
+  gameSegmentId: number;
+  apiKey: string;
+}
+
+export interface GamesScoresAddResponse {
+  result: {
+    success: boolean;
+    scoreId?: number;
   };
 }

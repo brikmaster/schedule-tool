@@ -21,22 +21,33 @@ export default function ColumnMapper() {
 
   const handleNext = () => {
     // Create games from raw data
-    const games: GameRow[] = state.rawData.map((row, index) => ({
-      id: `game-${index}`,
-      rowIndex: index,
-      date: row[state.columnMapping.date!] || null,
-      time: row[state.columnMapping.time!] || null,
-      homeTeam: {
-        originalText: row[state.columnMapping.homeTeam!] || "",
-        status: "pending",
-      } as TeamResolution,
-      awayTeam: {
-        originalText: row[state.columnMapping.awayTeam!] || "",
-        status: "pending",
-      } as TeamResolution,
-      status: "ambiguous",
-      selected: true,
-    }));
+    const games: GameRow[] = state.rawData.map((row, index) => {
+      // Parse scores if columns are mapped
+      const homeScoreStr = state.columnMapping.homeScore ? row[state.columnMapping.homeScore] : null;
+      const awayScoreStr = state.columnMapping.awayScore ? row[state.columnMapping.awayScore] : null;
+
+      const homeScore = homeScoreStr ? parseInt(homeScoreStr, 10) : null;
+      const awayScore = awayScoreStr ? parseInt(awayScoreStr, 10) : null;
+
+      return {
+        id: `game-${index}`,
+        rowIndex: index,
+        date: row[state.columnMapping.date!] || null,
+        time: row[state.columnMapping.time!] || null,
+        homeTeam: {
+          originalText: row[state.columnMapping.homeTeam!] || "",
+          status: "pending",
+        } as TeamResolution,
+        awayTeam: {
+          originalText: row[state.columnMapping.awayTeam!] || "",
+          status: "pending",
+        } as TeamResolution,
+        homeScore: isNaN(homeScore!) ? null : homeScore,
+        awayScore: isNaN(awayScore!) ? null : awayScore,
+        status: "ambiguous",
+        selected: true,
+      };
+    });
 
     dispatch({ type: "SET_GAMES", games });
     dispatch({ type: "SET_STEP", step: 4 });
@@ -167,6 +178,26 @@ export default function ColumnMapper() {
             options={columnOptions}
             placeholder="None"
             helperText={`Example: ${getExampleValue(state.columnMapping.awayState)}`}
+          />
+          <Dropdown
+            label="Home Score Column"
+            value={state.columnMapping.homeScore || ""}
+            onChange={(homeScore) =>
+              dispatch({ type: "SET_COLUMN_MAPPING", mapping: { homeScore } })
+            }
+            options={columnOptions}
+            placeholder="None (for future games)"
+            helperText={`Example: ${getExampleValue(state.columnMapping.homeScore)}`}
+          />
+          <Dropdown
+            label="Away Score Column"
+            value={state.columnMapping.awayScore || ""}
+            onChange={(awayScore) =>
+              dispatch({ type: "SET_COLUMN_MAPPING", mapping: { awayScore } })
+            }
+            options={columnOptions}
+            placeholder="None (for future games)"
+            helperText={`Example: ${getExampleValue(state.columnMapping.awayScore)}`}
           />
         </div>
       </div>

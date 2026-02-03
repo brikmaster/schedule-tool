@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useAppState } from "./useAppState";
-import { addGame } from "@/lib/api";
+import { addGame, addScore } from "@/lib/api";
 import { SubmissionResult } from "@/types";
+import { FINAL_SEGMENT_ID } from "@/lib/constants";
 
 export function useGameSubmission() {
   const { state, dispatch } = useAppState();
@@ -65,6 +66,28 @@ export function useGameSubmission() {
           localGameTimezone: state.defaults.timezone,
           duplicateCheckWindow: "large",
         });
+
+        // If game has scores (already played), add final score
+        const hasScores =
+          game.homeScore !== null &&
+          game.homeScore !== undefined &&
+          game.awayScore !== null &&
+          game.awayScore !== undefined;
+
+        if (hasScores && !response.result.isDuplicate) {
+          try {
+            await addScore({
+              accessToken: process.env.NEXT_PUBLIC_SCORESTREAM_ACCESS_TOKEN || "",
+              gameId: response.result.gameId,
+              homeTeamScore: game.homeScore!,
+              awayTeamScore: game.awayScore!,
+              gameSegmentId: FINAL_SEGMENT_ID,
+            });
+          } catch (scoreError) {
+            console.error("Failed to add score:", scoreError);
+            // Continue even if score fails - game is still created
+          }
+        }
 
         results.push({
           gameRowId: game.id,

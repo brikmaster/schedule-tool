@@ -91,6 +91,9 @@ export function getDefaultSegmentType(sport: SportName): SegmentType {
   return defaultSegment ? defaultSegment.value : segments[0].value;
 }
 
+// Final score segment ID (used when adding final scores to completed games)
+export const FINAL_SEGMENT_ID = 1000;
+
 // Common timezones
 export const TIMEZONES = [
   { value: "America/Los_Angeles", label: "Pacific Time (PT)" },

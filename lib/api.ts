@@ -5,6 +5,8 @@ import {
   TeamsSearchResponse,
   GamesAddRequest,
   GamesAddResponse,
+  GamesScoresAddRequest,
+  GamesScoresAddResponse,
   Team,
   TeamPicture,
 } from "@/types";
@@ -113,6 +115,25 @@ export async function addGame(
   const response = await jsonRpcCall<GamesAddResponse>(
     "games.add",
     gameParams
+  );
+
+  return response;
+}
+
+export async function addScore(
+  params: Omit<GamesScoresAddRequest, "apiKey">
+): Promise<GamesScoresAddResponse> {
+  const scoreParams: Omit<GamesScoresAddRequest, "apiKey"> = {
+    accessToken: params.accessToken,
+    gameId: params.gameId,
+    homeTeamScore: params.homeTeamScore,
+    awayTeamScore: params.awayTeamScore,
+    gameSegmentId: params.gameSegmentId,
+  };
+
+  const response = await jsonRpcCall<GamesScoresAddResponse>(
+    "games.scores.add",
+    scoreParams
   );
 
   return response;
