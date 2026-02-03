@@ -92,7 +92,7 @@ export async function searchTeams(
   // Only add optional params if they have values
   if (params.city) searchParams.city = params.city;
   if (params.state) searchParams.state = params.state;
-  if (params.orgId) searchParams.orgId = params.orgId;
+  if (params.orgId) searchParams.organizationIds = [params.orgId]; // API expects array of integers
 
   const response = await jsonRpcCall<TeamsSearchResponse>(
     "teams.search",
