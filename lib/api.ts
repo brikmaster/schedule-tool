@@ -22,21 +22,30 @@ if (typeof window !== 'undefined') {
 
 // JSON-RPC 2.0 wrapper
 async function jsonRpcCall<T>(method: string, params: Record<string, any>): Promise<T> {
+  const requestBody = {
+    jsonrpc: "2.0",
+    method,
+    params: {
+      ...params,
+      apiKey: API_KEY,
+      accessToken: ACCESS_TOKEN
+    },
+    id: Date.now(),
+  };
+
+  console.log('[API Debug] Request:', {
+    method,
+    teamName: params.teamName,
+    hasApiKey: !!API_KEY,
+    hasAccessToken: !!ACCESS_TOKEN
+  });
+
   const response = await fetch(API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      method,
-      params: {
-        ...params,
-        apiKey: API_KEY,
-        accessToken: ACCESS_TOKEN
-      },
-      id: Date.now(),
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -45,7 +54,17 @@ async function jsonRpcCall<T>(method: string, params: Record<string, any>): Prom
 
   const json = await response.json();
 
+  // Debug: Log API response
+  console.log('[API Debug] Response:', {
+    method,
+    status: response.status,
+    hasError: !!json.error,
+    hasResult: !!json.result,
+    resultPreview: json.result ? Object.keys(json.result) : 'N/A'
+  });
+
   if (json.error) {
+    console.error('[API Debug] API Error:', json.error);
     throw new Error(json.error.message || "API error occurred");
   }
 
@@ -65,6 +84,7 @@ export async function searchTeams(
     city: params.city,
     state: params.state,
     country: params.country || "US",
+    orgId: params.orgId,
     recommendedFor: "addingGames",
     ignoreUserCreatedTeams: true,
     count: params.count || 10,
