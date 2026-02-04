@@ -31,10 +31,12 @@ export function useTeamResolution() {
         const coreHomeName = extractCoreName(parsedHome.teamName);
         const searchHomeName = coreHomeName.length >= 3 ? coreHomeName : normalizedHomeName;
 
-        // Use parsed location if available, otherwise fall back to CSV columns or defaults
+        // Use parsed location if available, otherwise fall back to game data, CSV columns, or defaults
         const homeCity = parsedHome.city ||
+          game.homeCity ||
           state.rawData[game.rowIndex]?.[state.columnMapping.homeCity || ""];
         const homeState = parsedHome.state ||
+          game.homeState ||
           state.rawData[game.rowIndex]?.[state.columnMapping.homeState || ""] ||
           state.defaults.state || "";
 
@@ -109,10 +111,12 @@ export function useTeamResolution() {
         const coreAwayName = extractCoreName(parsedAway.teamName);
         const searchAwayName = coreAwayName.length >= 3 ? coreAwayName : normalizedAwayName;
 
-        // Use parsed location if available, otherwise fall back to CSV columns or defaults
+        // Use parsed location if available, otherwise fall back to game data, CSV columns, or defaults
         const awayCity = parsedAway.city ||
+          game.awayCity ||
           state.rawData[game.rowIndex]?.[state.columnMapping.awayCity || ""];
         const awayState = parsedAway.state ||
+          game.awayState ||
           state.rawData[game.rowIndex]?.[state.columnMapping.awayState || ""] ||
           state.defaults.state || "";
 

@@ -76,6 +76,8 @@ export function useGameSubmission() {
           duplicateCheckWindow: "large",
         });
 
+        console.log('[Game Submission] games.add response:', response);
+
         // If game has scores (already played), add final score
         const hasScores =
           game.homeScore !== null &&

@@ -71,6 +71,10 @@ export default function FileUpload() {
             originalText: g.awayTeam || "",
             status: "pending" as const
           },
+          homeCity: g.homeCity,
+          homeState: g.homeState,
+          awayCity: g.awayCity,
+          awayState: g.awayState,
           homeScore: g.homeScore,
           awayScore: g.awayScore,
           status: "ready" as const,

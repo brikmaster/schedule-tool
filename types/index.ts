@@ -81,6 +81,10 @@ export interface GameRow {
   time: string | null;
   homeTeam: TeamResolution;
   awayTeam: TeamResolution;
+  homeCity?: string | null;
+  homeState?: string | null;
+  awayCity?: string | null;
+  awayState?: string | null;
   homeScore?: number | null;
   awayScore?: number | null;
   status: GameStatus;
