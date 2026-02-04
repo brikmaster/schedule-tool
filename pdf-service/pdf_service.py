@@ -33,22 +33,33 @@ def extract_maxpreps_schedule(pdf_file: io.BytesIO) -> Dict:
         for page in pdf.pages:
             all_text += page.extract_text() + "\n"
 
+    # Log first 500 chars to help debug
+    print(f"[PDF Extract] First 500 chars: {all_text[:500]}")
+
     # Extract main team from header (supports Basketball, Football, etc.)
     main_team_match = re.search(
         r'(?:Printable\s+)?([A-Za-z\s]+?(?:High School)?)\s+(?:Basketball|Football|Baseball|Softball|Soccer|Volleyball|Hockey|Lacrosse)\s+Schedule',
         all_text,
-        re.MULTILINE
+        re.MULTILINE | re.IGNORECASE
     )
+
     if main_team_match:
         main_team = main_team_match.group(1).strip()
         main_team = re.sub(r'^Printable\s+', '', main_team)
+        print(f"[PDF Extract] Found main team via schedule header: {main_team}")
     else:
+        print("[PDF Extract] No match on schedule header, trying address...")
         # Fallback: look for "High School" pattern in address
         hs_match = re.search(
             r'Address[:\s]+[^,]*?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:High School|HS)',
             all_text
         )
-        main_team = hs_match.group(1) + " High School" if hs_match else "Unknown"
+        if hs_match:
+            main_team = hs_match.group(1) + " High School"
+            print(f"[PDF Extract] Found main team via address: {main_team}")
+        else:
+            print("[PDF Extract] Could not find main team - setting to Unknown")
+            main_team = "Unknown"
 
     # Extract city/state for main team from address line
     addr_match = re.search(r'Address[:\s]+[^,]+,\s*([^,]+),\s*([A-Z]{2})\s+\d{5}', all_text)
