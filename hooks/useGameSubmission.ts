@@ -78,6 +78,14 @@ export function useGameSubmission() {
 
         console.log('[Game Submission] games.add response:', response);
 
+        // Extract game details from the response
+        const gameData = response.result?.collections?.gameCollection?.list?.[0];
+        const gameId = response.result?.gameId || gameData?.gameId;
+        const gameUrl = gameData?.url || `https://scorestream.com/game/${gameId}`;
+
+        // Check if duplicate by looking for existing scores or specific flag
+        const isDuplicate = gameData?.totalPosts > 0 || gameData?.totalQuickScores > 0;
+
         // If game has scores (already played), add final score
         const hasScores =
           game.homeScore !== null &&
@@ -85,7 +93,7 @@ export function useGameSubmission() {
           game.awayScore !== null &&
           game.awayScore !== undefined;
 
-        if (hasScores && !response.result.isDuplicate) {
+        if (hasScores && !isDuplicate) {
           try {
             // First, fetch the game to get the correct segment IDs
             console.log(`[Score Submission] Fetching game segments for game ${response.result.gameId}`);
@@ -158,9 +166,9 @@ export function useGameSubmission() {
 
         results.push({
           gameRowId: game.id,
-          status: response.result.isDuplicate ? "duplicate" : "created",
-          gameId: response.result.gameId,
-          gameUrl: response.result.url,
+          status: isDuplicate ? "duplicate" : "created",
+          gameId: gameId,
+          gameUrl: gameUrl,
         });
       } catch (error) {
         results.push({
