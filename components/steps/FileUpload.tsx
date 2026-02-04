@@ -71,6 +71,8 @@ export default function FileUpload() {
             originalText: g.awayTeam || "",
             status: "pending" as const
           },
+          homeScore: g.homeScore,
+          awayScore: g.awayScore,
           status: "ready" as const,
           selected: true
         }));
