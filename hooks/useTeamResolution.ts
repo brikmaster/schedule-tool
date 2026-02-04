@@ -3,7 +3,7 @@ import { useAppState } from "./useAppState";
 import { searchTeams } from "@/lib/api";
 import { autoMatchTeam } from "@/lib/confidence";
 import { parseTeamName } from "@/lib/utils/teamNameParser";
-import { normalizeTeamName } from "@/lib/utils/teamNameNormalizer";
+import { normalizeTeamName, extractCoreName } from "@/lib/utils/teamNameNormalizer";
 
 export function useTeamResolution() {
   const { state, dispatch } = useAppState();
@@ -26,6 +26,11 @@ export function useTeamResolution() {
         // Normalize team name (remove quotes, convert HS to High School, etc.)
         const normalizedHomeName = normalizeTeamName(parsedHome.teamName);
 
+        // Extract core name for broader API search (e.g., "Wildwood HS" -> "Wildwood")
+        // This helps find teams like "Wildwood Middle High School" when searching "Wildwood HS"
+        const coreHomeName = extractCoreName(parsedHome.teamName);
+        const searchHomeName = coreHomeName.length >= 3 ? coreHomeName : normalizedHomeName;
+
         // Use parsed location if available, otherwise fall back to CSV columns or defaults
         const homeCity = parsedHome.city ||
           state.rawData[game.rowIndex]?.[state.columnMapping.homeCity || ""];
@@ -33,10 +38,10 @@ export function useTeamResolution() {
           state.rawData[game.rowIndex]?.[state.columnMapping.homeState || ""] ||
           state.defaults.state || "";
 
-        console.log(`[Team Resolution] Searching for home team: "${game.homeTeam.originalText}" → normalized: "${normalizedHomeName}"`);
+        console.log(`[Team Resolution] Searching for home team: "${game.homeTeam.originalText}" → core: "${searchHomeName}" (normalized: "${normalizedHomeName}")`);
 
         const homeResponse = await searchTeams({
-          teamName: normalizedHomeName,
+          teamName: searchHomeName,
           city: homeCity,
           state: homeState,
           orgId: state.defaults.orgId || undefined,
@@ -99,6 +104,11 @@ export function useTeamResolution() {
         // Normalize team name (remove quotes, convert HS to High School, etc.)
         const normalizedAwayName = normalizeTeamName(parsedAway.teamName);
 
+        // Extract core name for broader API search (e.g., "Wildwood HS" -> "Wildwood")
+        // This helps find teams like "Wildwood Middle High School" when searching "Wildwood HS"
+        const coreAwayName = extractCoreName(parsedAway.teamName);
+        const searchAwayName = coreAwayName.length >= 3 ? coreAwayName : normalizedAwayName;
+
         // Use parsed location if available, otherwise fall back to CSV columns or defaults
         const awayCity = parsedAway.city ||
           state.rawData[game.rowIndex]?.[state.columnMapping.awayCity || ""];
@@ -106,10 +116,10 @@ export function useTeamResolution() {
           state.rawData[game.rowIndex]?.[state.columnMapping.awayState || ""] ||
           state.defaults.state || "";
 
-        console.log(`[Team Resolution] Searching for away team: "${game.awayTeam.originalText}" → normalized: "${normalizedAwayName}"`);
+        console.log(`[Team Resolution] Searching for away team: "${game.awayTeam.originalText}" → core: "${searchAwayName}" (normalized: "${normalizedAwayName}")`);
 
         const awayResponse = await searchTeams({
-          teamName: normalizedAwayName,
+          teamName: searchAwayName,
           city: awayCity,
           state: awayState,
           orgId: state.defaults.orgId || undefined,

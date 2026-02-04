@@ -74,17 +74,20 @@ export function normalizeTeamName(name: string): string {
  *   "Oakdale High School" -> "Oakdale"
  *   "Sierra HS" -> "Sierra"
  *   "Lincoln Academy" -> "Lincoln"
+ *   "Wildwood Middle High School" -> "Wildwood"
  */
 export function extractCoreName(name: string): string {
   // First normalize the name
   const normalized = normalizeTeamName(name);
 
-  // Remove common school type suffixes
+  // Remove common school type suffixes (order matters - longest first)
   const suffixesToRemove = [
-    /\bHigh School\b/gi,
+    /\bMiddle High School\b/gi,      // Combined suffix (e.g., Wildwood Middle High School)
     /\bJunior High School\b/gi,
-    /\bMiddle School\b/gi,
     /\bElementary School\b/gi,
+    /\bHigh School\b/gi,
+    /\bMiddle School\b/gi,
+    /\bPreparatory School\b/gi,
     /\bPreparatory\b/gi,
     /\bAcademy\b/gi,
     /\bSchool\b/gi,
@@ -123,12 +126,25 @@ export function areTeamNamesEquivalent(name1: string, name2: string): boolean {
 }
 
 /**
+ * Extracts the primary keyword (usually the first significant word)
+ * Examples:
+ *   "Wildwood High School" -> "wildwood"
+ *   "The Oakdale HS" -> "oakdale"
+ */
+function extractPrimaryKeyword(name: string): string {
+  const core = extractCoreName(name).toLowerCase().trim();
+  const words = core.split(/\s+/).filter(w => w.length > 2 && !NOISE_WORDS.has(w));
+  return words[0] || '';
+}
+
+/**
  * Calculates similarity score between two team names (0-100)
  * Uses multiple strategies:
  * - Exact match after normalization: 100
  * - Core name match: 80
+ * - Primary keyword match: 70
  * - One contains the other: 60
- * - Partial word match: 40
+ * - Partial word match: 40-60
  */
 export function calculateNameSimilarity(searchTerm: string, teamName: string): number {
   const search = normalizeForComparison(searchTerm);
@@ -145,6 +161,14 @@ export function calculateNameSimilarity(searchTerm: string, teamName: string): n
 
   if (searchCore && teamCore && searchCore === teamCore) {
     return 80;
+  }
+
+  // Primary keyword match (e.g., "Wildwood" in both "Wildwood HS" and "Wildwood Middle High School")
+  const searchKeyword = extractPrimaryKeyword(searchTerm);
+  const teamKeyword = extractPrimaryKeyword(teamName);
+
+  if (searchKeyword && teamKeyword && searchKeyword === teamKeyword && searchKeyword.length >= 4) {
+    return 70;
   }
 
   // One contains the other
