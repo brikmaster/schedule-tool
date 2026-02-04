@@ -10,7 +10,7 @@ interface FileDropzoneProps {
 
 export default function FileDropzone({
   onFileSelect,
-  accept = ".csv,.xlsx,.xls",
+  accept = ".csv,.xlsx,.xls,.pdf",
 }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,13 +18,17 @@ export default function FileDropzone({
   const validateFile = (file: File): string | null => {
     // Check file type
     const extension = file.name.toLowerCase().split(".").pop();
-    if (!["csv", "xlsx", "xls"].includes(extension || "")) {
-      return "Invalid file type. Please upload a CSV or Excel file.";
+    if (!FILE_LIMITS.ACCEPTED_EXTENSIONS.includes(`.${extension}`)) {
+      return "Invalid file type. Please upload a CSV, Excel, or PDF file.";
     }
 
-    // Check file size
-    if (file.size > FILE_LIMITS.MAX_SIZE_BYTES) {
-      return `File too large. Maximum size is ${FILE_LIMITS.MAX_SIZE_MB}MB.`;
+    // Check file size (different limits for PDF vs CSV/Excel)
+    const isPdf = extension === 'pdf';
+    const maxSize = isPdf ? FILE_LIMITS.MAX_PDF_SIZE_BYTES : FILE_LIMITS.MAX_SIZE_BYTES;
+    const maxSizeMB = isPdf ? FILE_LIMITS.MAX_PDF_SIZE_MB : FILE_LIMITS.MAX_SIZE_MB;
+
+    if (file.size > maxSize) {
+      return `File too large. Maximum size for ${isPdf ? 'PDF' : 'CSV/Excel'} is ${maxSizeMB}MB.`;
     }
 
     return null;
@@ -99,7 +103,7 @@ export default function FileDropzone({
           </svg>
           <div>
             <p className="text-lg font-medium text-[var(--ss-text)]">
-              Drag and drop your file here
+              Drag and drop a CSV, Excel, or PDF file here
             </p>
             <p className="text-sm text-[var(--ss-text-light)] mt-1">
               or click to browse
@@ -119,8 +123,7 @@ export default function FileDropzone({
             Choose File
           </label>
           <p className="text-xs text-[var(--ss-text-light)] mt-2">
-            Accepts CSV and Excel files (max {FILE_LIMITS.MAX_SIZE_MB}MB, {FILE_LIMITS.MAX_ROWS}{" "}
-            rows)
+            Accepted formats: .csv, .xlsx, .xls, .pdf
           </p>
         </div>
       </div>

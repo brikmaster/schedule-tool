@@ -65,6 +65,12 @@ export interface AppState {
     state: SubmissionState;
     results: SubmissionResult[];
   };
+  pdfMetadata?: {
+    mainTeam: string;
+    completedGamesCount: number;
+    upcomingGamesCount: number;
+    totalGamesInPdf: number;
+  };
 }
 
 // Single game in the queue

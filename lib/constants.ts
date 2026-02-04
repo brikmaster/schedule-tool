@@ -175,12 +175,16 @@ export const US_STATES = [
 // File validation
 export const FILE_LIMITS = {
   MAX_ROWS: 1000,
+  MAX_PDF_GAMES: 200,
   MAX_SIZE_MB: 5,
+  MAX_PDF_SIZE_MB: 10,
   MAX_SIZE_BYTES: 5 * 1024 * 1024,
+  MAX_PDF_SIZE_BYTES: 10 * 1024 * 1024,
   ACCEPTED_TYPES: [
     "text/csv",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/pdf",
   ],
-  ACCEPTED_EXTENSIONS: [".csv", ".xls", ".xlsx"],
+  ACCEPTED_EXTENSIONS: [".csv", ".xls", ".xlsx", ".pdf"],
 };

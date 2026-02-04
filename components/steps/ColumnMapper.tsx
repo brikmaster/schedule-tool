@@ -11,6 +11,14 @@ import { GameRow, TeamResolution } from "@/types";
 export default function ColumnMapper() {
   const { state, dispatch } = useAppState();
 
+  // Auto-skip if PDF (games already populated, no headers)
+  useEffect(() => {
+    if (state.headers.length === 0 && state.games.length > 0) {
+      // This is a PDF - skip to game queue
+      dispatch({ type: "SET_STEP", step: 4 });
+    }
+  }, []);
+
   // Auto-detect on mount
   useEffect(() => {
     if (state.headers.length > 0 && !state.columnMapping.date) {

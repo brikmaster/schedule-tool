@@ -12,6 +12,17 @@ export type AppAction =
       headers: string[];
       rawData: Record<string, string>[];
     }
+  | {
+      type: "SET_GAMES_FROM_PDF";
+      file: File;
+      games: GameRow[];
+      pdfMetadata?: {
+        mainTeam: string;
+        completedGamesCount: number;
+        upcomingGamesCount: number;
+        totalGamesInPdf: number;
+      };
+    }
   | { type: "SET_DEFAULTS"; defaults: Partial<AppState["defaults"]> }
   | {
       type: "SET_COLUMN_MAPPING";
@@ -77,6 +88,16 @@ function appReducer(state: AppState, action: AppAction): AppState {
         file: action.file,
         headers: action.headers,
         rawData: action.rawData,
+      };
+
+    case "SET_GAMES_FROM_PDF":
+      return {
+        ...state,
+        file: action.file,
+        games: action.games,
+        headers: [],
+        rawData: [],
+        pdfMetadata: action.pdfMetadata,
       };
 
     case "SET_DEFAULTS":

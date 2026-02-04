@@ -48,7 +48,10 @@ export default function ConfigureDefaults() {
   };
 
   const handleNext = () => {
-    dispatch({ type: "SET_STEP", step: 3 });
+    // PDFs skip column mapping (step 3) and go directly to game queue (step 4)
+    // CSV/Excel files need column mapping first
+    const isPdf = state.headers.length === 0 && state.games.length > 0;
+    dispatch({ type: "SET_STEP", step: isPdf ? 4 : 3 });
   };
 
   const handleBack = () => {
