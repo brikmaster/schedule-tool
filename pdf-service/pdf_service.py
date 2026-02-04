@@ -37,8 +37,9 @@ def extract_maxpreps_schedule(pdf_file: io.BytesIO) -> Dict:
     print(f"[PDF Extract] First 500 chars: {all_text[:500]}")
 
     # Extract main team from header (supports Basketball, Football, etc.)
+    # Pattern: "Printable? [Team Name] High School? [Sport] Schedule"
     main_team_match = re.search(
-        r'(?:Printable\s+)?([A-Za-z\s]+?(?:High School)?)\s+(?:Basketball|Football|Baseball|Softball|Soccer|Volleyball|Hockey|Lacrosse)\s+Schedule',
+        r'(?:Printable\s+)?(.+?)\s+(?:Basketball|Football|Baseball|Softball|Soccer|Volleyball|Hockey|Lacrosse)\s+Schedule',
         all_text,
         re.MULTILINE | re.IGNORECASE
     )
