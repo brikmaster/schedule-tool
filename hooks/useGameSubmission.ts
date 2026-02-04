@@ -83,6 +83,14 @@ export function useGameSubmission() {
         const gameId = response.result?.gameId || gameData?.gameId;
         const gameUrl = gameData?.url || `https://scorestream.com/game/${gameId}`;
 
+        console.log('[Game Submission] Extracted values:', {
+          hasGameData: !!gameData,
+          gameId: gameId,
+          gameUrl: gameUrl,
+          gameDataUrl: gameData?.url,
+          resultGameId: response.result?.gameId
+        });
+
         // Check if duplicate by looking for existing scores or specific flag
         const isDuplicate = gameData?.totalPosts > 0 || gameData?.totalQuickScores > 0;
 
@@ -164,12 +172,15 @@ export function useGameSubmission() {
           }
         }
 
-        results.push({
+        const resultEntry = {
           gameRowId: game.id,
           status: isDuplicate ? "duplicate" : "created",
           gameId: gameId,
           gameUrl: gameUrl,
-        });
+        };
+
+        console.log('[Game Submission] Adding to results:', resultEntry);
+        results.push(resultEntry);
       } catch (error) {
         results.push({
           gameRowId: game.id,
