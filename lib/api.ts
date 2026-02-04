@@ -119,6 +119,8 @@ export async function addGame(
     gameParams
   );
 
+  console.log('[API] games.add response:', JSON.stringify(response, null, 2));
+
   return response;
 }
 
