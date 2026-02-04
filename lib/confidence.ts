@@ -1,6 +1,7 @@
 // Team Matching Confidence Scoring
 
 import { Team, TeamResolution } from "@/types";
+import { calculateNameSimilarity } from "@/lib/utils/teamNameNormalizer";
 
 export const CONFIDENCE_THRESHOLD = 70;
 
@@ -12,21 +13,17 @@ export function calculateConfidence(
 ): number {
   let score = 0;
 
-  // Exact name match (0-40 points)
-  const searchLower = searchTerm.toLowerCase().trim();
-  const teamLower = team.teamName.toLowerCase();
-  const minLower = team.minTeamName.toLowerCase();
-  const shortLower = team.shortTeamName?.toLowerCase() || "";
+  // Name matching with fuzzy logic (0-40 points)
+  // Try matching against teamName, minTeamName, and shortTeamName
+  const teamNameSimilarity = calculateNameSimilarity(searchTerm, team.teamName);
+  const minNameSimilarity = calculateNameSimilarity(searchTerm, team.minTeamName);
+  const shortNameSimilarity = team.shortTeamName
+    ? calculateNameSimilarity(searchTerm, team.shortTeamName)
+    : 0;
 
-  if (teamLower === searchLower || minLower === searchLower) {
-    score += 40;
-  } else if (shortLower === searchLower) {
-    score += 35;
-  } else if (teamLower.includes(searchLower) || searchLower.includes(minLower)) {
-    score += 20;
-  } else if (minLower.includes(searchLower.split(" ")[0])) {
-    score += 15;
-  }
+  // Use the best similarity score and scale it to 0-40 points
+  const bestSimilarity = Math.max(teamNameSimilarity, minNameSimilarity, shortNameSimilarity);
+  score += Math.round((bestSimilarity / 100) * 40);
 
   // Location match (0-60 points)
   if (inputState && team.state.toLowerCase() === inputState.toLowerCase()) {
