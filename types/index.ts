@@ -178,8 +178,17 @@ export interface GamesAddRequest {
 export interface GamesAddResponse {
   result: {
     gameId: number;
-    url: string;
-    isDuplicate?: boolean;
+    collections?: {
+      gameCollection?: {
+        list?: Array<{
+          gameId: number;
+          url?: string;
+          totalPosts?: number;
+          totalQuickScores?: number;
+          [key: string]: any;
+        }>;
+      };
+    };
   };
 }
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAppState } from "./useAppState";
 import { addGame, addScore, getGame } from "@/lib/api";
-import { SubmissionResult } from "@/types";
+import { SubmissionResult, SubmissionStatus } from "@/types";
 import { FINAL_SEGMENT_ID } from "@/lib/constants";
 import { selectFinalSegment } from "@/lib/utils/segmentSelector";
 
@@ -92,7 +92,7 @@ export function useGameSubmission() {
         });
 
         // Check if duplicate by looking for existing scores or specific flag
-        const isDuplicate = gameData?.totalPosts > 0 || gameData?.totalQuickScores > 0;
+        const isDuplicate = (gameData?.totalPosts ?? 0) > 0 || (gameData?.totalQuickScores ?? 0) > 0;
 
         // If game has scores (already played), add final score
         const hasScores =
@@ -172,7 +172,7 @@ export function useGameSubmission() {
           }
         }
 
-        const resultEntry = {
+        const resultEntry: SubmissionResult = {
           gameRowId: game.id,
           status: isDuplicate ? "duplicate" : "created",
           gameId: gameId,
