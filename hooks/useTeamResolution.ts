@@ -40,8 +40,6 @@ export function useTeamResolution() {
           state.rawData[game.rowIndex]?.[state.columnMapping.homeState || ""] ||
           state.defaults.state || "";
 
-        console.log(`[Team Resolution] Searching for home team: "${game.homeTeam.originalText}" → core: "${searchHomeName}" (normalized: "${normalizedHomeName}")`);
-
         const homeResponse = await searchTeams({
           teamName: searchHomeName,
           city: homeCity,
@@ -119,8 +117,6 @@ export function useTeamResolution() {
           game.awayState ||
           state.rawData[game.rowIndex]?.[state.columnMapping.awayState || ""] ||
           state.defaults.state || "";
-
-        console.log(`[Team Resolution] Searching for away team: "${game.awayTeam.originalText}" → core: "${searchAwayName}" (normalized: "${normalizedAwayName}")`);
 
         const awayResponse = await searchTeams({
           teamName: searchAwayName,

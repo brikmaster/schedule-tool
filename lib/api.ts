@@ -114,56 +114,32 @@ export async function addGame(
     duplicateCheckWindow: "large",
   };
 
-  const response = await jsonRpcCall<GamesAddResponse>(
+  return await jsonRpcCall<GamesAddResponse>(
     "games.add",
     gameParams
   );
-
-  console.log('[API] games.add response:', JSON.stringify(response, null, 2));
-
-  return response;
 }
 
 export async function addScore(
   params: Omit<GamesScoresAddRequest, "apiKey">
 ): Promise<GamesScoresAddResponse> {
-  const scoreParams: Omit<GamesScoresAddRequest, "apiKey"> = {
-    accessToken: params.accessToken,
-    gameId: params.gameId,
-    homeTeamScore: params.homeTeamScore,
-    awayTeamScore: params.awayTeamScore,
-    gameSegmentId: params.gameSegmentId,
-  };
-
-  console.log('[API] games.scores.add request:', {
-    gameId: params.gameId,
-    homeTeamScore: params.homeTeamScore,
-    awayTeamScore: params.awayTeamScore,
-    gameSegmentId: params.gameSegmentId,
-    hasAccessToken: !!params.accessToken,
-  });
-
-  const response = await jsonRpcCall<GamesScoresAddResponse>(
+  return await jsonRpcCall<GamesScoresAddResponse>(
     "games.scores.add",
-    scoreParams
+    {
+      accessToken: params.accessToken,
+      gameId: params.gameId,
+      homeTeamScore: params.homeTeamScore,
+      awayTeamScore: params.awayTeamScore,
+      gameSegmentId: params.gameSegmentId,
+    }
   );
-
-  console.log('[API] games.scores.add response:', response);
-
-  return response;
 }
 
 export async function getGame(
   params: Omit<GamesGetRequest, "apiKey">
 ): Promise<GamesGetResponse> {
-  console.log('[API] games.get request:', { gameIds: params.gameIds });
-
-  const response = await jsonRpcCall<GamesGetResponse>(
+  return await jsonRpcCall<GamesGetResponse>(
     "games.get",
     { gameIds: params.gameIds }
   );
-
-  console.log('[API] games.get response:', JSON.stringify(response, null, 2));
-
-  return response;
 }
