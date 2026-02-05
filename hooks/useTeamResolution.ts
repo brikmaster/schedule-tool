@@ -40,14 +40,6 @@ export function useTeamResolution() {
           state.rawData[game.rowIndex]?.[state.columnMapping.homeState || ""] ||
           state.defaults.state || "";
 
-        console.log(`[Team Search] Home team: "${game.homeTeam.originalText}"`, {
-          searchName: searchHomeName,
-          normalizedName: normalizedHomeName,
-          city: homeCity,
-          state: homeState,
-          orgId: state.defaults.orgId
-        });
-
         let homeResponse = await searchTeams({
           teamName: searchHomeName,
           city: homeCity,
@@ -62,7 +54,6 @@ export function useTeamResolution() {
 
         // If no results with city, try without city (city name might not match)
         if (allHomeTeams.length === 0 && homeCity) {
-          console.log(`[Team Search] No results with city "${homeCity}", retrying without city`);
           homeResponse = await searchTeams({
             teamName: searchHomeName,
             state: homeState,
@@ -73,15 +64,6 @@ export function useTeamResolution() {
           });
           allHomeTeams = homeResponse.result?.collections?.teamCollection?.list || [];
         }
-
-        console.log(`[Team Search] API returned ${allHomeTeams.length} teams:`,
-          allHomeTeams.map((t: any) => ({
-            name: t.teamName,
-            city: t.city,
-            state: t.state,
-            orgId: t.orgId || t.organizationId || t.orgID || t.org_id
-          }))
-        );
 
         // Filter results to only include teams from the selected organization
         const filteredHomeTeams = allHomeTeams.filter((team: any) => {
@@ -94,11 +76,6 @@ export function useTeamResolution() {
 
           // If no orgId found on team, exclude it to be safe
           return false;
-        });
-
-        console.log(`[Team Search] After org filter: ${filteredHomeTeams.length} teams`, {
-          requestedOrgId: state.defaults.orgId,
-          filtered: filteredHomeTeams.map((t: any) => t.teamName)
         });
 
         const homeResolution = autoMatchTeam(
@@ -154,14 +131,6 @@ export function useTeamResolution() {
           state.rawData[game.rowIndex]?.[state.columnMapping.awayState || ""] ||
           state.defaults.state || "";
 
-        console.log(`[Team Search] Away team: "${game.awayTeam.originalText}"`, {
-          searchName: searchAwayName,
-          normalizedName: normalizedAwayName,
-          city: awayCity,
-          state: awayState,
-          orgId: state.defaults.orgId
-        });
-
         let awayResponse = await searchTeams({
           teamName: searchAwayName,
           city: awayCity,
@@ -176,7 +145,6 @@ export function useTeamResolution() {
 
         // If no results with city, try without city (city name might not match)
         if (allAwayTeams.length === 0 && awayCity) {
-          console.log(`[Team Search] No results with city "${awayCity}", retrying without city`);
           awayResponse = await searchTeams({
             teamName: searchAwayName,
             state: awayState,
@@ -187,15 +155,6 @@ export function useTeamResolution() {
           });
           allAwayTeams = awayResponse.result?.collections?.teamCollection?.list || [];
         }
-
-        console.log(`[Team Search] API returned ${allAwayTeams.length} teams:`,
-          allAwayTeams.map((t: any) => ({
-            name: t.teamName,
-            city: t.city,
-            state: t.state,
-            orgId: t.orgId || t.organizationId || t.orgID || t.org_id
-          }))
-        );
 
         // Filter results to only include teams from the selected organization
         const filteredAwayTeams = allAwayTeams.filter((team: any) => {
@@ -208,11 +167,6 @@ export function useTeamResolution() {
 
           // If no orgId found on team, exclude it to be safe
           return false;
-        });
-
-        console.log(`[Team Search] After org filter: ${filteredAwayTeams.length} teams`, {
-          requestedOrgId: state.defaults.orgId,
-          filtered: filteredAwayTeams.map((t: any) => t.teamName)
         });
 
         const awayResolution = autoMatchTeam(
