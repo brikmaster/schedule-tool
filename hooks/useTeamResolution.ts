@@ -48,7 +48,7 @@ export function useTeamResolution() {
           orgId: state.defaults.orgId
         });
 
-        const homeResponse = await searchTeams({
+        let homeResponse = await searchTeams({
           teamName: searchHomeName,
           city: homeCity,
           state: homeState,
@@ -58,7 +58,21 @@ export function useTeamResolution() {
           count: 10,
         });
 
-        const allHomeTeams = homeResponse.result?.collections?.teamCollection?.list || [];
+        let allHomeTeams = homeResponse.result?.collections?.teamCollection?.list || [];
+
+        // If no results with city, try without city (city name might not match)
+        if (allHomeTeams.length === 0 && homeCity) {
+          console.log(`[Team Search] No results with city "${homeCity}", retrying without city`);
+          homeResponse = await searchTeams({
+            teamName: searchHomeName,
+            state: homeState,
+            orgId: state.defaults.orgId || undefined,
+            recommendedFor: "addingGames",
+            ignoreUserCreatedTeams: true,
+            count: 10,
+          });
+          allHomeTeams = homeResponse.result?.collections?.teamCollection?.list || [];
+        }
 
         console.log(`[Team Search] API returned ${allHomeTeams.length} teams:`,
           allHomeTeams.map((t: any) => ({
@@ -148,7 +162,7 @@ export function useTeamResolution() {
           orgId: state.defaults.orgId
         });
 
-        const awayResponse = await searchTeams({
+        let awayResponse = await searchTeams({
           teamName: searchAwayName,
           city: awayCity,
           state: awayState,
@@ -158,7 +172,21 @@ export function useTeamResolution() {
           count: 10,
         });
 
-        const allAwayTeams = awayResponse.result?.collections?.teamCollection?.list || [];
+        let allAwayTeams = awayResponse.result?.collections?.teamCollection?.list || [];
+
+        // If no results with city, try without city (city name might not match)
+        if (allAwayTeams.length === 0 && awayCity) {
+          console.log(`[Team Search] No results with city "${awayCity}", retrying without city`);
+          awayResponse = await searchTeams({
+            teamName: searchAwayName,
+            state: awayState,
+            orgId: state.defaults.orgId || undefined,
+            recommendedFor: "addingGames",
+            ignoreUserCreatedTeams: true,
+            count: 10,
+          });
+          allAwayTeams = awayResponse.result?.collections?.teamCollection?.list || [];
+        }
 
         console.log(`[Team Search] API returned ${allAwayTeams.length} teams:`,
           allAwayTeams.map((t: any) => ({
