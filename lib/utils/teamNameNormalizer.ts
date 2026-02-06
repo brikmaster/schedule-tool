@@ -4,6 +4,12 @@
  * Common team name suffix patterns and their normalized forms
  */
 const SUFFIX_PATTERNS = [
+  // Jr/Sr (Junior/Senior) High School variations - must come before other patterns
+  { pattern: /\bJr\.?\/Sr\.?\s+H\.?S\.?\b/gi, normalized: 'High School' },
+  { pattern: /\bJr\.?\/Sr\.?\s+High School\b/gi, normalized: 'High School' },
+  { pattern: /\bJr\.?-Sr\.?\s+H\.?S\.?\b/gi, normalized: 'High School' },
+  { pattern: /\bJunior\/Senior\s+High School\b/gi, normalized: 'High School' },
+
   // High School variations
   { pattern: /\bH\.?S\.?\b/gi, normalized: 'High School' },
   { pattern: /\bHigh Sch\b/gi, normalized: 'High School' },
@@ -38,12 +44,16 @@ const NOISE_WORDS = new Set([
 ]);
 
 /**
- * Normalizes a team name by standardizing suffixes
+ * Normalizes a team name by standardizing suffixes and removing annotations
  * Examples:
  *   "Oakdale HS" -> "Oakdale High School"
  *   "Sierra H.S." -> "Sierra High School"
  *   "Lincoln JHS" -> "Lincoln Junior High School"
  *   '"Oakdale HS"' -> "Oakdale High School"
+ *   "Batavia HS (Coming Home )" -> "Batavia High School"
+ *   "Milford High School (@ Cleveland)" -> "Milford High School"
+ *   "Loveland Jr/Sr HS" -> "Loveland High School"
+ *   "Springfield Jr./Sr. High School" -> "Springfield High School"
  */
 export function normalizeTeamName(name: string): string {
   let normalized = name.trim();
@@ -53,6 +63,10 @@ export function normalizeTeamName(name: string): string {
 
   // Trim again after removing quotes
   normalized = normalized.trim();
+
+  // Remove parenthetical content (e.g., "(Coming Home)", "(@ Cleveland)", "(Senior Night)")
+  // This handles event notes, location notes, and other annotations
+  normalized = normalized.replace(/\s*\([^)]*\)\s*/g, ' ');
 
   // Apply all suffix pattern replacements
   for (const { pattern, normalized: replacement } of SUFFIX_PATTERNS) {

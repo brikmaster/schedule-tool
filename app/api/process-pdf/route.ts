@@ -7,6 +7,10 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File;
 
+    // Get optional school query parameter
+    const { searchParams } = new URL(request.url);
+    const school = searchParams.get("school");
+
     // Validation
     if (!file || !file.name.toLowerCase().endsWith(".pdf")) {
       return NextResponse.json(
@@ -19,7 +23,12 @@ export async function POST(request: NextRequest) {
     const pdfFormData = new FormData();
     pdfFormData.append("file", file);
 
-    const response = await fetch(`${PDF_SERVICE_URL}/extract`, {
+    // Build URL with optional school parameter
+    const url = school
+      ? `${PDF_SERVICE_URL}/extract?school=${encodeURIComponent(school)}`
+      : `${PDF_SERVICE_URL}/extract`;
+
+    const response = await fetch(url, {
       method: "POST",
       body: pdfFormData,
     });

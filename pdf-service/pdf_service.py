@@ -21,6 +21,40 @@ MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 MAX_GAMES = 200
 
 
+def detect_schedule_star_format(text: str) -> bool:
+    """
+    Detect Schedule Star format by looking for:
+    - "Schedule Star" text
+    - Phone "866-448-9438"
+    - "*=League Event" footer
+    - Team level headers (Boys Varsity, etc.)
+    """
+    indicators = [
+        re.search(r'Schedule\s+Star', text, re.IGNORECASE),
+        re.search(r'866-448-9438', text),
+        re.search(r'\*=League Event', text),
+        re.search(r'Boys|Girls\s+(Varsity|Junior Varsity|Freshman)', text)
+    ]
+    return sum(bool(x) for x in indicators) >= 2
+
+
+def detect_texas_isd_format(text: str) -> bool:
+    """
+    Detect Texas ISD multi-school format by looking for:
+    - Column headers: "Day Of Week", "School Name", "Location", "Opponent"
+    - "BASKETBALL SCHEDULE" or "VARSITY" in title
+    - Multiple school names in content
+    """
+    indicators = [
+        re.search(r'Day Of Week', text, re.IGNORECASE),
+        re.search(r'School Name', text, re.IGNORECASE),
+        re.search(r'VARSITY.*BASKETBALL.*SCHEDULE', text, re.IGNORECASE),
+        re.search(r'Start Date.*Start Time', text, re.IGNORECASE),
+        re.search(r'Location.*Sport.*Opponent', text, re.IGNORECASE),
+    ]
+    return sum(bool(x) for x in indicators) >= 3
+
+
 def extract_maxpreps_schedule(pdf_file: io.BytesIO) -> Dict:
     """
     Extract game schedule from MaxPreps-style PDF.
@@ -170,6 +204,344 @@ def extract_maxpreps_schedule(pdf_file: io.BytesIO) -> Dict:
     }
 
 
+def extract_schedule_star_format(pdf_file: io.BytesIO) -> Dict:
+    """
+    Extract schedule from Schedule Star format PDFs.
+    Extracts first team section found (usually Varsity).
+    """
+    # 1. Extract text from PDF
+    with pdfplumber.open(pdf_file) as pdf:
+        all_text = "\n".join(page.extract_text() for page in pdf.pages)
+
+    # 2. Extract school info from header
+    # Pattern matches: "Team Schedule [School Name] High School"
+    school_match = re.search(
+        r'Team Schedule\s+(.+?High School)',
+        all_text, re.MULTILINE
+    )
+    if school_match:
+        main_team = school_match.group(1).strip()
+    else:
+        # Fallback: try to find any "... High School" pattern
+        fallback_match = re.search(
+            r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+High School)',
+            all_text, re.MULTILINE
+        )
+        main_team = fallback_match.group(1) if fallback_match else "Unknown"
+
+    # 3. Extract address for city/state
+    addr_match = re.search(
+        r'([A-Za-z\s]+),\s*([A-Z]{2})\s+\d{5}',
+        all_text
+    )
+    main_city = addr_match.group(1).strip() if addr_match else None
+    main_state = addr_match.group(2) if addr_match else None
+
+    # 4. Find Varsity section and limit extraction to only Varsity games
+    varsity_section_match = re.search(
+        r'(Boys|Girls)\s+Varsity',
+        all_text, re.IGNORECASE
+    )
+
+    if not varsity_section_match:
+        print("[Schedule Star] No Varsity section found")
+        # If no Varsity section found, extract all games (fallback)
+        varsity_text = all_text
+    else:
+        varsity_start = varsity_section_match.start()
+
+        # Find the next team section (Junior Varsity or Freshman) to know where to stop
+        next_section_match = re.search(
+            r'(Boys|Girls)\s+(Junior Varsity|Freshman)',
+            all_text[varsity_start:],
+            re.IGNORECASE
+        )
+
+        if next_section_match:
+            # Extract only up to the next section
+            varsity_end = varsity_start + next_section_match.start()
+            varsity_text = all_text[varsity_start:varsity_end]
+            print(f"[Schedule Star] Extracting Varsity section only (chars {varsity_start}-{varsity_end})")
+        else:
+            # No other section found, extract from Varsity to end
+            varsity_text = all_text[varsity_start:]
+            print(f"[Schedule Star] Extracting Varsity section to end of document")
+
+    # 5. Parse game lines from Varsity section only
+    # Game line pattern - captures all components on one line
+    game_line_pattern = re.compile(
+        r'^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s+'  # Day
+        r'(\d{2}/\d{2}/\d{2})\s+'           # Date MM/DD/YY
+        r'(\*?)(.+?)\s+'                     # League marker + Opponent
+        r'(Home|Away)\s+'                    # Home/Away
+        r'(TBA|\d{1,2}:\d{2}\s*[AP]M)',     # Time
+        re.MULTILINE
+    )
+
+    games = []
+    for match in game_line_pattern.finditer(varsity_text):
+        day_of_week = match.group(1)
+        date_str = match.group(2)      # MM/DD/YY
+        is_league = bool(match.group(3))
+        opponent = match.group(4).strip().lstrip('*').strip()
+        location = match.group(5)      # Home or Away
+        time_str = match.group(6)
+
+        # Skip "OPEN" tournament placeholders
+        if opponent.startswith('OPEN'):
+            continue
+
+        # Convert MM/DD/YY to MM/DD/YYYY
+        month, day, year = date_str.split('/')
+        formatted_date = f"{month}/{day}/20{year}"
+
+        # Normalize time
+        if time_str == 'TBA':
+            time_normalized = None
+        else:
+            # Clean up time formatting - ensure single space before AM/PM
+            time_normalized = re.sub(r'\s*([AP]M)', r' \1', time_str)
+
+        # Determine home/away teams
+        if location == 'Home':
+            home_team = main_team
+            away_team = opponent
+            home_city = main_city
+            home_state = main_state
+            away_city = None
+            away_state = None
+        else:
+            home_team = opponent
+            away_team = main_team
+            home_city = None
+            home_state = None
+            away_city = main_city
+            away_state = main_state
+
+        games.append({
+            'date': formatted_date,
+            'time': time_normalized,
+            'homeTeam': home_team,
+            'awayTeam': away_team,
+            'homeCity': home_city,
+            'homeState': home_state,
+            'awayCity': away_city,
+            'awayState': away_state,
+            'homeScore': None,
+            'awayScore': None,
+            'isCompleted': False,
+        })
+
+    print(f"[Schedule Star] Extracted {len(games)} games from {main_team}")
+    if games:
+        print(f"[Schedule Star] First game: {games[0]}")
+
+    return {
+        'success': True,
+        'mainTeam': main_team,
+        'mainCity': main_city,
+        'mainState': main_state,
+        'games': games,
+        'gameCount': len(games)
+    }
+
+
+def extract_texas_isd_format(pdf_file: io.BytesIO, school_filter: Optional[str] = None) -> Dict:
+    """
+    Extract schedule from Texas ISD multi-school format PDFs.
+    Uses table extraction for better accuracy with wrapped text.
+
+    Args:
+        pdf_file: PDF file buffer
+        school_filter: Optional school name to filter (e.g., "Brennan HS"). If None, extracts first school found.
+
+    Returns:
+        Dict with schedule data for the specified school
+    """
+    games_by_school = {}
+
+    with pdfplumber.open(pdf_file) as pdf:
+        for page in pdf.pages:
+            tables = page.extract_tables()
+
+            for table in tables:
+                if not table or len(table) < 3:
+                    continue
+
+                # Find header row (usually row 0 or 1)
+                header_row_idx = 0
+                if table[0][0] and 'SCHEDULE' in str(table[0][0]).upper():
+                    header_row_idx = 1  # Title row, headers are in row 1
+
+                headers = [str(h).strip().lower() if h else "" for h in table[header_row_idx]]
+
+                try:
+                    day_idx = next(i for i, h in enumerate(headers) if 'day of week' in h or 'day' in h)
+                    date_idx = next(i for i, h in enumerate(headers) if 'start date' in h or 'date' in h)
+                    time_idx = next(i for i, h in enumerate(headers) if 'start time' in h or 'time' in h)
+                    school_idx = next(i for i, h in enumerate(headers) if 'school name' in h)
+                    location_idx = next(i for i, h in enumerate(headers) if 'location' in h)
+                    sport_idx = next(i for i, h in enumerate(headers) if 'sport' in h)
+                    opponent_idx = next(i for i, h in enumerate(headers) if 'opponent' in h)
+                    venue_idx = next(i for i, h in enumerate(headers) if 'venue' in h)
+                except StopIteration:
+                    # This table doesn't have the expected columns
+                    continue
+
+                # Parse data rows (start after header row)
+                for row in table[header_row_idx + 1:]:
+                    if not row or len(row) <= max(day_idx, date_idx, time_idx, school_idx, location_idx, opponent_idx):
+                        continue
+
+                    date_str = str(row[date_idx]).strip() if row[date_idx] else None
+                    time_str = str(row[time_idx]).strip() if row[time_idx] else None
+                    school_name = str(row[school_idx]).strip() if row[school_idx] else None
+                    location = str(row[location_idx]).strip() if row[location_idx] else None
+                    opponent_raw = str(row[opponent_idx]).strip() if row[opponent_idx] else None
+
+                    # Clean up opponent name (remove newlines, extra whitespace, mascot names on separate lines)
+                    if opponent_raw:
+                        # Replace newlines with spaces, collapse multiple spaces
+                        opponent = re.sub(r'\s+', ' ', opponent_raw.replace('\n', ' ')).strip()
+
+                        # Remove common mascot/team names that appear after school name
+                        opponent = re.split(r'\s+(Tigers?|Eagles?|Warriors?|Knights?|Patriots?|Buffaloes?|Rangers?|Basketball|Varsity|Cougars?|Lions?|Panthers?)', opponent)[0].strip()
+
+                        # Remove abbreviations at the end (e.g., "Westlake High School WHS" -> "Westlake High School")
+                        opponent = re.sub(r'\s+[A-Z]{2,4}$', '', opponent)
+
+                        # Remove duplicate school names (e.g., "United HS United" -> "United HS")
+                        words = opponent.split()
+                        if len(words) >= 3 and words[-1] == words[0]:
+                            opponent = ' '.join(words[:-1])
+                    else:
+                        opponent = None
+
+                    # Skip invalid rows
+                    if not date_str or not school_name or not opponent or not location:
+                        continue
+
+                    # Skip header rows that got repeated
+                    if 'Day Of Week' in date_str or 'Start Date' in date_str:
+                        continue
+
+                    # Skip tournament games with TBD opponents
+                    if opponent in ['TBD', 'None'] or 'Tournament' in opponent or 'Classic' in opponent or 'Invitational' in opponent:
+                        continue
+
+                    # Normalize time
+                    if time_str in ['TBA', 'None', '']:
+                        time_normalized = None
+                    else:
+                        time_normalized = re.sub(r'\s*([AP]M)', r' \1', time_str)
+
+                    # Determine home/away teams
+                    if location == 'Home':
+                        home_team = school_name
+                        away_team = opponent
+                        home_city = None
+                        home_state = 'TX'
+                        away_city = None
+                        away_state = None
+                    else:  # Away
+                        home_team = opponent
+                        away_team = school_name
+                        home_city = None
+                        home_state = None
+                        away_city = None
+                        away_state = 'TX'
+
+                    game = {
+                        'date': date_str,
+                        'time': time_normalized,
+                        'homeTeam': home_team,
+                        'awayTeam': away_team,
+                        'homeCity': home_city,
+                        'homeState': home_state,
+                        'awayCity': away_city,
+                        'awayState': away_state,
+                        'homeScore': None,
+                        'awayScore': None,
+                        'isCompleted': False,
+                    }
+
+                    # Group by school
+                    if school_name not in games_by_school:
+                        games_by_school[school_name] = []
+                    games_by_school[school_name].append(game)
+
+    # Determine which school to return
+    if not games_by_school:
+        print("[Texas ISD] No games found")
+        return {
+            'success': False,
+            'mainTeam': None,
+            'mainCity': None,
+            'mainState': None,
+            'games': [],
+            'gameCount': 0
+        }
+
+    # Calculate game counts for each school
+    school_game_counts = {school: len(games) for school, games in games_by_school.items()}
+
+    # If no school_filter specified, return school selection prompt
+    if not school_filter:
+        print(f"[Texas ISD] Multi-school PDF detected. Awaiting school selection.")
+        print(f"[Texas ISD] Available schools: {list(games_by_school.keys())}")
+        return {
+            'success': True,
+            'requiresSchoolSelection': True,
+            'availableSchools': [
+                {'name': school, 'gameCount': count}
+                for school, count in school_game_counts.items()
+            ],
+            'mainTeam': None,
+            'mainCity': None,
+            'mainState': 'TX',
+            'games': [],
+            'gameCount': 0
+        }
+
+    # If school_filter specified, use it
+    school_name = school_filter
+    games = games_by_school.get(school_filter, [])
+
+    if not games:
+        print(f"[Texas ISD] School '{school_filter}' not found. Available: {list(games_by_school.keys())}")
+        return {
+            'success': False,
+            'error': f"School '{school_filter}' not found in PDF",
+            'availableSchools': [
+                {'name': school, 'gameCount': count}
+                for school, count in school_game_counts.items()
+            ],
+            'mainTeam': None,
+            'mainCity': None,
+            'mainState': None,
+            'games': [],
+            'gameCount': 0
+        }
+
+    print(f"[Texas ISD] Extracted {len(games)} games from {school_name}")
+    print(f"[Texas ISD] Available schools: {list(games_by_school.keys())}")
+    if games:
+        print(f"[Texas ISD] First game: {games[0]}")
+
+    return {
+        'success': True,
+        'mainTeam': school_name,
+        'mainCity': None,  # Not in this format
+        'mainState': 'TX',
+        'games': games,
+        'gameCount': len(games),
+        'availableSchools': [
+            {'name': school, 'gameCount': count}
+            for school, count in school_game_counts.items()
+        ]
+    }
+
+
 def extract_table_schedule(pdf_file: io.BytesIO) -> Dict:
     """
     Fallback: Extract schedule from table-based PDFs.
@@ -230,9 +602,13 @@ def extract_table_schedule(pdf_file: io.BytesIO) -> Dict:
 
 
 @app.post("/extract")
-async def extract_schedule(file: UploadFile = File(...)):
+async def extract_schedule(file: UploadFile = File(...), school: Optional[str] = None):
     """
     Extract game schedule from uploaded PDF file.
+
+    Args:
+        file: PDF file upload
+        school: Optional school name filter for multi-school PDFs (e.g., Texas ISD format)
     """
     # Validate file type
     if not file.filename.lower().endswith('.pdf'):
@@ -251,16 +627,30 @@ async def extract_schedule(file: UploadFile = File(...)):
     pdf_file = io.BytesIO(content)
 
     try:
-        # Try MaxPreps extraction first
-        result = extract_maxpreps_schedule(pdf_file)
+        # Extract first page for format detection
+        with pdfplumber.open(pdf_file) as pdf:
+            first_page_text = pdf.pages[0].extract_text()
 
-        # If no games found, try table extraction
-        if result['gameCount'] == 0:
+        pdf_file.seek(0)
+
+        # Detect and route to correct extractor
+        if detect_schedule_star_format(first_page_text):
+            print("[PDF Extract] Detected Schedule Star format")
+            result = extract_schedule_star_format(pdf_file)
+        elif detect_texas_isd_format(first_page_text):
+            print(f"[PDF Extract] Detected Texas ISD format (school filter: {school})")
+            result = extract_texas_isd_format(pdf_file, school_filter=school)
+        else:
+            print("[PDF Extract] Trying MaxPreps format")
+            result = extract_maxpreps_schedule(pdf_file)
+
+        # If no games found, try table extraction fallback (unless awaiting school selection)
+        if result['gameCount'] == 0 and not result.get('requiresSchoolSelection'):
             pdf_file.seek(0)
             result = extract_table_schedule(pdf_file)
 
-        # Validate game count
-        if result['gameCount'] == 0:
+        # Validate game count (skip if awaiting school selection)
+        if result['gameCount'] == 0 and not result.get('requiresSchoolSelection'):
             raise HTTPException(
                 status_code=400,
                 detail="No games found in PDF. This can happen with scanned or image-based PDFs."

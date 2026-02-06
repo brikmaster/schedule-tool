@@ -7,14 +7,22 @@ import FileDropzone from "@/components/ui/FileDropzone";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 
+interface AvailableSchool {
+  name: string;
+  gameCount: number;
+}
+
 export default function FileUpload() {
   const { state, dispatch } = useAppState();
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [processingStatus, setProcessingStatus] = useState<string | null>(null);
+  const [availableSchools, setAvailableSchools] = useState<AvailableSchool[]>([]);
+  const [selectedSchool, setSelectedSchool] = useState<string>("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
-  const handleFileSelect = async (file: File) => {
+  const handleFileSelect = async (file: File, schoolName?: string) => {
     setParsing(true);
     setError(null);
     setInfo(null);
@@ -29,7 +37,12 @@ export default function FileUpload() {
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await fetch("/api/process-pdf", {
+        // Add school parameter if provided
+        const url = schoolName
+          ? `/api/process-pdf?school=${encodeURIComponent(schoolName)}`
+          : "/api/process-pdf";
+
+        const response = await fetch(url, {
           method: "POST",
           body: formData
         });
@@ -40,6 +53,15 @@ export default function FileUpload() {
         if (result.error) {
           setError(result.error);
           return;
+        }
+
+        // Check if school selection is required
+        if (result.requiresSchoolSelection && result.availableSchools) {
+          setAvailableSchools(result.availableSchools);
+          setPendingFile(file);
+          setParsing(false);
+          setProcessingStatus(null);
+          return; // Wait for school selection
         }
 
         if (!result.success || result.gameCount === 0) {
@@ -123,6 +145,21 @@ export default function FileUpload() {
     dispatch({ type: "RESET" });
     setError(null);
     setInfo(null);
+    setAvailableSchools([]);
+    setSelectedSchool("");
+    setPendingFile(null);
+  };
+
+  const handleSchoolSelection = async () => {
+    if (!selectedSchool || !pendingFile) return;
+
+    // Re-process PDF with selected school
+    await handleFileSelect(pendingFile, selectedSchool);
+
+    // Clear school selection state
+    setAvailableSchools([]);
+    setSelectedSchool("");
+    setPendingFile(null);
   };
 
   return (
@@ -131,9 +168,57 @@ export default function FileUpload() {
         Bulk Schedule Importer
       </h1>
 
-      {!state.file ? (
+      {/* School Selection UI */}
+      {availableSchools.length > 0 && (
+        <div className="mb-6">
+          <div className="p-6 bg-blue-50 border border-blue-400 rounded-lg">
+            <h2 className="text-xl font-semibold text-blue-900 mb-2">
+              Multiple Schools Detected
+            </h2>
+            <p className="text-blue-700 mb-4">
+              This PDF contains schedules for {availableSchools.length} schools. Please select which school you want to import:
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-blue-900 mb-2">
+                Select School
+              </label>
+              <select
+                value={selectedSchool}
+                onChange={(e) => setSelectedSchool(e.target.value)}
+                className="w-full px-4 py-2 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- Choose a school --</option>
+                {availableSchools.map((school) => (
+                  <option key={school.name} value={school.name}>
+                    {school.name} ({school.gameCount} games)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={handleSchoolSelection}
+                disabled={!selectedSchool}
+                className="flex-1"
+              >
+                Import {selectedSchool || "Selected School"}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleRemove}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!state.file && availableSchools.length === 0 ? (
         <FileDropzone onFileSelect={handleFileSelect} />
-      ) : (
+      ) : availableSchools.length === 0 && state.file ? (
         <div>
           <div className="mb-6 p-4 bg-green-50 border border-[var(--ss-success)] rounded">
             <div className="flex items-center justify-between">
@@ -201,7 +286,7 @@ export default function FileUpload() {
             </div>
           )}
         </div>
-      )}
+      ) : null}
 
       {parsing && (
         <div className="mt-4 text-center text-[var(--ss-text-light)]">
