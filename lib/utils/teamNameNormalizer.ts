@@ -42,6 +42,12 @@ const SUFFIX_PATTERNS = [
 
   // Valley variations
   { pattern: /\bVly\b/gi, normalized: 'Valley' },
+
+  // Directional abbreviations
+  { pattern: /\bEst\b/gi, normalized: 'East' },
+  { pattern: /\bWst\b/gi, normalized: 'West' },
+  { pattern: /\bNth\b/gi, normalized: 'North' },
+  { pattern: /\bSth\b/gi, normalized: 'South' },
 ];
 
 /**
