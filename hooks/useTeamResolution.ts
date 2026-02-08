@@ -78,8 +78,12 @@ export function useTeamResolution() {
           return false;
         });
 
+        // If filtering removed all results, fall back to unfiltered results
+        // This handles cases where teams from playoffs/tournaments may have different orgIds
+        const teamsToMatch = filteredHomeTeams.length > 0 ? filteredHomeTeams : allHomeTeams;
+
         const homeResolution = autoMatchTeam(
-          filteredHomeTeams,
+          teamsToMatch,
           normalizedHomeName,
           homeCity,
           homeState
@@ -169,8 +173,12 @@ export function useTeamResolution() {
           return false;
         });
 
+        // If filtering removed all results, fall back to unfiltered results
+        // This handles cases where teams from playoffs/tournaments may have different orgIds
+        const awayTeamsToMatch = filteredAwayTeams.length > 0 ? filteredAwayTeams : allAwayTeams;
+
         const awayResolution = autoMatchTeam(
-          filteredAwayTeams,
+          awayTeamsToMatch,
           normalizedAwayName,
           awayCity,
           awayState

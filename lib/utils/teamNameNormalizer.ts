@@ -218,7 +218,28 @@ export function calculateNameSimilarity(searchTerm: string, teamName: string): n
     return 70;
   }
 
-  // One contains the other
+  // Check if all search words are present in team name (order doesn't matter)
+  // E.g., "Knight High School" should match "Pete Knight High School" strongly
+  const searchWords = search.split(/\s+/).filter(w => w.length > 2);
+  const teamWords = team.split(/\s+/);
+
+  if (searchWords.length > 0) {
+    const allWordsPresent = searchWords.every(searchWord =>
+      teamWords.some(teamWord => teamWord === searchWord)
+    );
+
+    if (allWordsPresent) {
+      // All search words found in team name - very strong match
+      // The more words that match, the stronger the signal
+      const matchRatio = searchWords.length / teamWords.length;
+      if (matchRatio >= 0.5) {
+        return 85; // Most search words match
+      }
+      return 75; // All search words present but team has many extra words
+    }
+  }
+
+  // One contains the other as a substring
   if (team.includes(search) || search.includes(team)) {
     return 60;
   }
