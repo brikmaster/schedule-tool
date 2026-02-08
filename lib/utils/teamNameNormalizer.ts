@@ -244,16 +244,17 @@ export function calculateNameSimilarity(searchTerm: string, teamName: string): n
     return 60;
   }
 
-  // Check if all words in search term appear in team name
-  const searchWords = search.split(/\s+/).filter(w => w.length > 2);
-  const teamWords = team.split(/\s+/);
+  // Partial word match (already checked above with exact word matches)
+  // Check if words partially overlap (less precise than exact word match)
+  const searchWordsPartial = search.split(/\s+/).filter(w => w.length > 2);
+  const teamWordsPartial = team.split(/\s+/);
 
-  if (searchWords.length > 0) {
-    const matchedWords = searchWords.filter(word =>
-      teamWords.some(tw => tw.includes(word) || word.includes(tw))
+  if (searchWordsPartial.length > 0) {
+    const matchedWords = searchWordsPartial.filter(word =>
+      teamWordsPartial.some(tw => tw.includes(word) || word.includes(tw))
     );
 
-    const matchRatio = matchedWords.length / searchWords.length;
+    const matchRatio = matchedWords.length / searchWordsPartial.length;
     if (matchRatio >= 0.8) {
       return 60;
     } else if (matchRatio >= 0.5) {
