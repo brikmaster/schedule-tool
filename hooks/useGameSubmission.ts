@@ -18,6 +18,22 @@ export function useGameSubmission() {
 
     let month: string, day: string, year: string;
 
+    // Month name to number mapping
+    const monthNames: Record<string, string> = {
+      'jan': '1', 'january': '1',
+      'feb': '2', 'february': '2',
+      'mar': '3', 'march': '3',
+      'apr': '4', 'april': '4',
+      'may': '5',
+      'jun': '6', 'june': '6',
+      'jul': '7', 'july': '7',
+      'aug': '8', 'august': '8',
+      'sep': '9', 'sept': '9', 'september': '9',
+      'oct': '10', 'october': '10',
+      'nov': '11', 'november': '11',
+      'dec': '12', 'december': '12',
+    };
+
     // Try parsing date in MM/DD/YYYY or M/D/YYYY format
     if (date.includes("/")) {
       const dateParts = date.split("/");
@@ -36,15 +52,33 @@ export function useGameSubmission() {
         const yearNum = parseInt(year, 10);
         year = yearNum >= 50 ? `19${year}` : `20${year}`;
       }
-    } else if (date.includes("-")) {
-      // Try ISO format YYYY-MM-DD
+    } else if (date.includes("-") && !date.match(/[a-zA-Z]/)) {
+      // Try ISO format YYYY-MM-DD (only if no letters)
       const dateParts = date.split("-");
       if (dateParts.length !== 3) {
         throw new Error(`Invalid date format: "${date}". Expected YYYY-MM-DD`);
       }
       [year, month, day] = dateParts;
     } else {
-      throw new Error(`Invalid date format: "${date}". Expected MM/DD/YYYY or YYYY-MM-DD`);
+      // Try parsing text format like "Wed, Feb 11" or "February 11, 2025"
+      // Remove day of week if present (e.g., "Wed, ")
+      let cleanDate = date.replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*,?\s*/i, '').trim();
+
+      // Match patterns like "Feb 11" or "February 11, 2025" or "Feb 11, 2025"
+      const textDateMatch = cleanDate.match(/([A-Za-z]+)\.?\s+(\d{1,2})(?:,?\s+(\d{4}))?/);
+
+      if (textDateMatch) {
+        const monthName = textDateMatch[1].toLowerCase();
+        day = textDateMatch[2];
+        year = textDateMatch[3] || new Date().getFullYear().toString(); // Default to current year if not specified
+
+        month = monthNames[monthName];
+        if (!month) {
+          throw new Error(`Invalid month name: "${textDateMatch[1]}"`);
+        }
+      } else {
+        throw new Error(`Invalid date format: "${date}". Expected MM/DD/YYYY, YYYY-MM-DD, or "Month Day" format`);
+      }
     }
 
     // Parse time
