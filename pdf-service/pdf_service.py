@@ -38,6 +38,23 @@ def detect_schedule_star_format(text: str) -> bool:
     return sum(bool(x) for x in indicators) >= 2
 
 
+def detect_cif_bracket_format(text: str) -> bool:
+    """
+    Detect CIF-SS playoff bracket format by looking for:
+    - "CIF-SS" text
+    - "CHAMPIONSHIPS" text
+    - Round indicators (Round 1, Round 2, etc.)
+    - "*DENOTES HOST TEAM" text
+    """
+    indicators = [
+        re.search(r'CIF-SS', text, re.IGNORECASE),
+        re.search(r'CHAMPIONSHIPS', text, re.IGNORECASE),
+        re.search(r'Round 1', text, re.IGNORECASE),
+        re.search(r'\*DENOTES HOST TEAM', text, re.IGNORECASE),
+    ]
+    return sum(bool(x) for x in indicators) >= 3
+
+
 def detect_texas_isd_format(text: str) -> bool:
     """
     Detect Texas ISD multi-school format by looking for:
@@ -346,6 +363,110 @@ def extract_schedule_star_format(pdf_file: io.BytesIO) -> Dict:
     }
 
 
+def extract_cif_bracket_format(pdf_file: io.BytesIO) -> Dict:
+    """
+    Extract schedule from CIF-SS playoff bracket format PDFs.
+    Extracts Round 1 matchups from tournament brackets.
+    """
+    # 1. Extract text from PDF
+    with pdfplumber.open(pdf_file) as pdf:
+        all_text = "\n".join(page.extract_text() for page in pdf.pages)
+
+    # 2. Extract Round 1 date and time
+    # In the bracket format, round headers are on one line: "Round 1 Round 2 Quarter Final..."
+    # And dates/times are on the next line: "02/11/2026 07:00 PM 02/13/2026 07:00 PM..."
+    # Extract the first date/time which corresponds to Round 1
+    round1_match = re.search(
+        r'Round 1.*?\n(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2}\s+[AP]M)',
+        all_text,
+        re.IGNORECASE | re.DOTALL
+    )
+
+    if not round1_match:
+        print("[CIF Bracket] Could not find Round 1 date/time")
+        return {
+            'success': False,
+            'games': [],
+            'gameCount': 0
+        }
+
+    round1_date = round1_match.group(1)  # MM/DD/YYYY
+    round1_time = round1_match.group(2)  # HH:MM AM/PM
+
+    print(f"[CIF Bracket] Round 1: {round1_date} at {round1_time}")
+
+    # 3. Extract all team lines
+    # Pattern: "Team Name * (League info) W-L-T" or "Team Name (League info) W-L-T"
+    # The asterisk indicates host team (appears after team name, before parenthesis)
+    team_pattern = re.compile(
+        r'^([A-Za-z][A-Za-z\s/.]+?)\s*(\*)?\s*\([^)]+\)\s+\d+-\d+-\d+\s*$',
+        re.MULTILINE
+    )
+
+    teams = []
+    for match in team_pattern.finditer(all_text):
+        team_name = match.group(1).strip()
+        is_host = bool(match.group(2))  # True if asterisk present
+        teams.append({
+            'name': team_name,
+            'isHost': is_host
+        })
+
+    print(f"[CIF Bracket] Found {len(teams)} teams")
+
+    if len(teams) == 0:
+        return {
+            'success': False,
+            'games': [],
+            'gameCount': 0
+        }
+
+    # 4. Pair teams into games (consecutive pairs)
+    games = []
+    for i in range(0, len(teams) - 1, 2):
+        team1 = teams[i]
+        team2 = teams[i + 1]
+
+        # Determine home/away based on host designation
+        if team1['isHost']:
+            home_team = team1['name']
+            away_team = team2['name']
+        elif team2['isHost']:
+            home_team = team2['name']
+            away_team = team1['name']
+        else:
+            # If neither has asterisk, first team is home (shouldn't happen but handle it)
+            home_team = team1['name']
+            away_team = team2['name']
+
+        games.append({
+            'date': round1_date,
+            'time': round1_time,
+            'homeTeam': home_team,
+            'awayTeam': away_team,
+            'homeCity': None,
+            'homeState': None,
+            'awayCity': None,
+            'awayState': None,
+            'homeScore': None,
+            'awayScore': None,
+            'isCompleted': False,
+        })
+
+    print(f"[CIF Bracket] Extracted {len(games)} Round 1 games")
+    if games:
+        print(f"[CIF Bracket] First game: {games[0]}")
+
+    return {
+        'success': True,
+        'mainTeam': None,
+        'mainCity': None,
+        'mainState': None,
+        'games': games,
+        'gameCount': len(games)
+    }
+
+
 def extract_texas_isd_format(pdf_file: io.BytesIO, school_filter: Optional[str] = None) -> Dict:
     """
     Extract schedule from Texas ISD multi-school format PDFs.
@@ -634,7 +755,10 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
         pdf_file.seek(0)
 
         # Detect and route to correct extractor
-        if detect_schedule_star_format(first_page_text):
+        if detect_cif_bracket_format(first_page_text):
+            print("[PDF Extract] Detected CIF bracket format")
+            result = extract_cif_bracket_format(pdf_file)
+        elif detect_schedule_star_format(first_page_text):
             print("[PDF Extract] Detected Schedule Star format")
             result = extract_schedule_star_format(pdf_file)
         elif detect_texas_isd_format(first_page_text):
