@@ -51,6 +51,7 @@ const SUFFIX_PATTERNS = [
 
   // Location/name abbreviations
   { pattern: /\bCap\b/gi, normalized: 'Capistrano' },
+  { pattern: /\bCapo\b/gi, normalized: 'Capistrano' },
 
   // Religious abbreviations
   { pattern: /\bSac\b/gi, normalized: 'Sacred' },
