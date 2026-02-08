@@ -48,6 +48,13 @@ const SUFFIX_PATTERNS = [
   { pattern: /\bWst\b/gi, normalized: 'West' },
   { pattern: /\bNth\b/gi, normalized: 'North' },
   { pattern: /\bSth\b/gi, normalized: 'South' },
+
+  // Location/name abbreviations
+  { pattern: /\bCap\b/gi, normalized: 'Capistrano' },
+
+  // Religious abbreviations
+  { pattern: /\bSac\b/gi, normalized: 'Sacred' },
+  { pattern: /\bHrt\b/gi, normalized: 'Heart' },
 ];
 
 /**
