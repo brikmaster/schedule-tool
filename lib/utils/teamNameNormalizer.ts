@@ -101,6 +101,16 @@ export function normalizeTeamName(name: string): string {
   normalized = normalized.replace(/\.$/, ''); // Remove trailing period
   normalized = normalized.replace(/\bSchool\s+School\b/gi, 'School'); // Fix double "School"
 
+  // If the name is very short (1-2 words) and doesn't end with a school type suffix,
+  // append "High School" to make it more specific for matching
+  // Examples: "Knight" -> "Knight High School", "Aquinas" -> "Aquinas High School"
+  const hasSchoolSuffix = /\b(High School|Middle School|Elementary School|Junior High School|Academy|Preparatory|School)\b/i.test(normalized);
+  const wordCount = normalized.split(/\s+/).length;
+
+  if (!hasSchoolSuffix && wordCount <= 2 && normalized.length > 0) {
+    normalized = normalized + ' High School';
+  }
+
   return normalized;
 }
 
