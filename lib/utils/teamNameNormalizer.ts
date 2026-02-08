@@ -39,6 +39,9 @@ const SUFFIX_PATTERNS = [
 
   // Christian variations
   { pattern: /\bChr\b/gi, normalized: 'Christian' },
+
+  // Valley variations
+  { pattern: /\bVly\b/gi, normalized: 'Valley' },
 ];
 
 /**
