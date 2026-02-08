@@ -1,6 +1,24 @@
 // Team Name Normalizer - Standardize team name suffixes for better matching
 
 /**
+ * City abbreviation mappings for slash-separated names
+ * e.g., "Santiago/C" -> "Santiago Corona", "Poly/LB" -> "Poly Long Beach"
+ */
+const CITY_ABBREVIATIONS: Record<string, string> = {
+  '/C': ' Corona',
+  '/OC': ' Orange County',
+  '/LB': ' Long Beach',
+  '/O': ' Orange',
+  '/LA': ' Los Angeles',
+  '/SB': ' Santa Barbara',
+  '/SD': ' San Diego',
+  '/SF': ' San Francisco',
+  '/IE': ' Inland Empire',
+  '/SJ': ' San Jose',
+  '/VC': ' Ventura County',
+};
+
+/**
  * Common team name suffix patterns and their normalized forms
  */
 const SUFFIX_PATTERNS = [
@@ -31,9 +49,13 @@ const SUFFIX_PATTERNS = [
 
   // Academy variations
   { pattern: /\bAcad\b/gi, normalized: 'Academy' },
+  { pattern: /\bAca\b/gi, normalized: 'Academy' },
 
   // Preparatory variations
   { pattern: /\bPrep\b/gi, normalized: 'Preparatory' },
+
+  // Christian variations
+  { pattern: /\bChr\b/gi, normalized: 'Christian' },
 ];
 
 /**
@@ -54,6 +76,10 @@ const NOISE_WORDS = new Set([
  *   "Milford High School (@ Cleveland)" -> "Milford High School"
  *   "Loveland Jr/Sr HS" -> "Loveland High School"
  *   "Springfield Jr./Sr. High School" -> "Springfield High School"
+ *   "Santiago/C" -> "Santiago Corona"
+ *   "Poly/LB" -> "Poly Long Beach"
+ *   "Pacifica Chr/OC" -> "Pacifica Christian Orange County"
+ *   "Lutheran/O" -> "Lutheran Orange"
  */
 export function normalizeTeamName(name: string): string {
   let normalized = name.trim();
@@ -68,7 +94,14 @@ export function normalizeTeamName(name: string): string {
   // This handles event notes, location notes, and other annotations
   normalized = normalized.replace(/\s*\([^)]*\)\s*/g, ' ');
 
-  // Apply all suffix pattern replacements
+  // Expand city abbreviations (e.g., "Santiago/C" -> "Santiago Corona")
+  // Must come before suffix patterns to preserve order
+  for (const [abbrev, expansion] of Object.entries(CITY_ABBREVIATIONS)) {
+    const pattern = new RegExp(abbrev.replace('/', '\\/') + '\\b', 'gi');
+    normalized = normalized.replace(pattern, expansion);
+  }
+
+  // Apply all suffix pattern replacements (including Chr -> Christian)
   for (const { pattern, normalized: replacement } of SUFFIX_PATTERNS) {
     normalized = normalized.replace(pattern, replacement);
   }
