@@ -11,19 +11,105 @@ export function useGameSubmission() {
   const [currentGame, setCurrentGame] = useState(0);
 
   const combineDateTime = (date: string, time: string): string => {
-    // Parse date (assuming MM/DD/YYYY format)
-    const [month, day, year] = date.split("/");
+    // Validate inputs
+    if (!date || !time || date.trim() === "" || time.trim() === "") {
+      throw new Error("Missing date or time");
+    }
 
-    // Parse time (assuming HH:MM AM/PM format)
-    let [timeStr, period] = time.split(" ");
-    let [hours, minutes] = timeStr.split(":");
+    let month: string, day: string, year: string;
+
+    // Try parsing date in MM/DD/YYYY or M/D/YYYY format
+    if (date.includes("/")) {
+      const dateParts = date.split("/");
+      if (dateParts.length !== 3) {
+        throw new Error(`Invalid date format: "${date}". Expected MM/DD/YYYY or M/D/YYYY`);
+      }
+      [month, day, year] = dateParts;
+
+      // Validate date parts exist
+      if (!month || !day || !year) {
+        throw new Error(`Invalid date components in: "${date}"`);
+      }
+
+      // Handle 2-digit years (convert to 4-digit)
+      if (year.length === 2) {
+        const yearNum = parseInt(year, 10);
+        year = yearNum >= 50 ? `19${year}` : `20${year}`;
+      }
+    } else if (date.includes("-")) {
+      // Try ISO format YYYY-MM-DD
+      const dateParts = date.split("-");
+      if (dateParts.length !== 3) {
+        throw new Error(`Invalid date format: "${date}". Expected YYYY-MM-DD`);
+      }
+      [year, month, day] = dateParts;
+    } else {
+      throw new Error(`Invalid date format: "${date}". Expected MM/DD/YYYY or YYYY-MM-DD`);
+    }
+
+    // Parse time
+    let timeStr = time.trim();
+    let period = "";
+
+    // Extract AM/PM if present
+    const ampmMatch = timeStr.match(/\s*(AM|PM|am|pm|A\.M\.|P\.M\.)\s*$/i);
+    if (ampmMatch) {
+      period = ampmMatch[1].toUpperCase().replace(/\./g, "");
+      timeStr = timeStr.substring(0, ampmMatch.index).trim();
+    }
+
+    // Split hours and minutes
+    const hourMinuteParts = timeStr.split(":");
+    if (hourMinuteParts.length < 2) {
+      throw new Error(`Invalid time format: "${time}". Expected HH:MM or HH:MM AM/PM`);
+    }
+
+    let hours = hourMinuteParts[0];
+    let minutes = hourMinuteParts[1];
+
+    // Remove seconds if present
+    if (hourMinuteParts.length === 3) {
+      minutes = hourMinuteParts[1]; // Keep just minutes, ignore seconds
+    }
+
+    // Validate time parts
+    if (!hours || !minutes) {
+      throw new Error(`Invalid time components in: "${time}"`);
+    }
 
     // Convert to 24-hour format
     let hour = parseInt(hours, 10);
-    if (period?.toUpperCase() === "PM" && hour !== 12) {
+    if (isNaN(hour)) {
+      throw new Error(`Invalid hour value: "${hours}"`);
+    }
+
+    // Apply AM/PM conversion
+    if (period === "PM" && hour !== 12) {
       hour += 12;
-    } else if (period?.toUpperCase() === "AM" && hour === 12) {
+    } else if (period === "AM" && hour === 12) {
       hour = 0;
+    }
+
+    // Validate parsed values
+    const monthNum = parseInt(month, 10);
+    const dayNum = parseInt(day, 10);
+    const yearNum = parseInt(year, 10);
+    const minuteNum = parseInt(minutes, 10);
+
+    if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      throw new Error(`Invalid month: "${month}"`);
+    }
+    if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
+      throw new Error(`Invalid day: "${day}"`);
+    }
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+      throw new Error(`Invalid year: "${year}"`);
+    }
+    if (hour < 0 || hour > 23) {
+      throw new Error(`Invalid hour: "${hour}"`);
+    }
+    if (isNaN(minuteNum) || minuteNum < 0 || minuteNum > 59) {
+      throw new Error(`Invalid minute: "${minutes}"`);
     }
 
     // Create ISO datetime string
