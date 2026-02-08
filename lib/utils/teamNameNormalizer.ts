@@ -1,22 +1,5 @@
 // Team Name Normalizer - Standardize team name suffixes for better matching
 
-/**
- * City abbreviation mappings for slash-separated names
- * e.g., "Santiago/C" -> "Santiago Corona", "Poly/LB" -> "Poly Long Beach"
- */
-const CITY_ABBREVIATIONS: Record<string, string> = {
-  '/C': ' Corona',
-  '/OC': ' Orange County',
-  '/LB': ' Long Beach',
-  '/O': ' Orange',
-  '/LA': ' Los Angeles',
-  '/SB': ' Santa Barbara',
-  '/SD': ' San Diego',
-  '/SF': ' San Francisco',
-  '/IE': ' Inland Empire',
-  '/SJ': ' San Jose',
-  '/VC': ' Ventura County',
-};
 
 /**
  * Common team name suffix patterns and their normalized forms
@@ -76,10 +59,10 @@ const NOISE_WORDS = new Set([
  *   "Milford High School (@ Cleveland)" -> "Milford High School"
  *   "Loveland Jr/Sr HS" -> "Loveland High School"
  *   "Springfield Jr./Sr. High School" -> "Springfield High School"
- *   "Santiago/C" -> "Santiago Corona"
- *   "Poly/LB" -> "Poly Long Beach"
- *   "Pacifica Chr/OC" -> "Pacifica Christian Orange County"
- *   "Lutheran/O" -> "Lutheran Orange"
+ *   "Santiago/C" -> "Santiago" (allows ambiguous match)
+ *   "Poly/LB" -> "Poly" (allows ambiguous match for "Long Beach Poly")
+ *   "Pacifica Chr/OC" -> "Pacifica Christian" (matches actual name)
+ *   "Lutheran/O" -> "Lutheran" (allows ambiguous match for "Orange Lutheran")
  */
 export function normalizeTeamName(name: string): string {
   let normalized = name.trim();
@@ -94,12 +77,10 @@ export function normalizeTeamName(name: string): string {
   // This handles event notes, location notes, and other annotations
   normalized = normalized.replace(/\s*\([^)]*\)\s*/g, ' ');
 
-  // Expand city abbreviations (e.g., "Santiago/C" -> "Santiago Corona")
-  // Must come before suffix patterns to preserve order
-  for (const [abbrev, expansion] of Object.entries(CITY_ABBREVIATIONS)) {
-    const pattern = new RegExp(abbrev.replace('/', '\\/') + '\\b', 'gi');
-    normalized = normalized.replace(pattern, expansion);
-  }
+  // Remove city abbreviations after slashes (e.g., "Santiago/C" -> "Santiago", "Poly/LB" -> "Poly")
+  // This creates more general names that will match ambiguously, allowing user to select correct team
+  // Common patterns: /C, /OC, /LB, /O, etc.
+  normalized = normalized.replace(/\/[A-Z]{1,3}\b/g, '');
 
   // Apply all suffix pattern replacements (including Chr -> Christian)
   for (const { pattern, normalized: replacement } of SUFFIX_PATTERNS) {
