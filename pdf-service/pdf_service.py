@@ -1072,6 +1072,8 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
             detected_format = "iowa_hs"
             try:
                 result = extract_iowa_hs_format(pdf_file, school_filter=school)
+            except HTTPException:
+                raise  # Let HTTPExceptions pass through (e.g., debug output)
             except Exception as iowa_err:
                 raise HTTPException(status_code=400, detail=f"Iowa HS extractor crashed: {type(iowa_err).__name__}: {iowa_err}")
         elif detect_schedule_star_format(first_page_text):
