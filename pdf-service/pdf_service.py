@@ -742,16 +742,19 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
     Supports multiple groups per year, 2025 + 2026 sections.
     """
     games_by_school = {}
+    debug_info = []
 
     with pdfplumber.open(pdf_file) as pdf:
-        for page in pdf.pages:
+        for page_idx, page in enumerate(pdf.pages):
             page_width = page.width
             words = page.extract_words(keep_blank_chars=True, x_tolerance=3, y_tolerance=3)
             if not words:
+                debug_info.append(f"p{page_idx}:no_words")
                 continue
 
             # Sort words by y then x
             words.sort(key=lambda w: (w['top'], w['x0']))
+            debug_info.append(f"p{page_idx}:{len(words)}w")
 
             # Find year markers
             year_markers = []
@@ -760,9 +763,11 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                     year_markers.append((w['top'], int(w['text'].strip())))
             if not year_markers:
                 year_markers = [(0, 2025)]
+            debug_info.append(f"years={[y for _,y in year_markers]}")
 
             # Find "School" header rows and their y-positions
             school_headers = [w for w in words if w['text'].strip() == 'School' and w['x0'] < 50]
+            debug_info.append(f"schoolHdrs={len(school_headers)}")
 
             for sh in school_headers:
                 header_y = sh['top']
@@ -793,8 +798,10 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                     col_positions.append((w['x0'], txt))
 
                 if not col_positions:
+                    debug_info.append(f"group@{header_y:.0f}:no_cols")
                     continue
 
+                debug_info.append(f"group@{header_y:.0f}:yr={year},cols={len(col_positions)},names={[n for _,n in col_positions[:3]]}")
                 col_ranges = _build_column_ranges(col_positions, page_width)
 
                 # Find Week rows for this group (directly below header, within ~250px)
@@ -805,6 +812,7 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                         week_rows.append((w['top'], int(wm.group(1))))
 
                 week_rows.sort(key=lambda x: x[0])
+                debug_info.append(f"weeks={len(week_rows)}")
 
                 for week_y, week_num in week_rows:
                     # Get all words on this week's row
@@ -874,6 +882,7 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                         games_by_school[school_name].append(game)
 
     if not games_by_school:
+        print(f"[Iowa HS] No games extracted. Debug: {' | '.join(debug_info)}")
         return {
             'success': False,
             'mainTeam': None,
@@ -881,6 +890,7 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
             'mainState': 'IA',
             'games': [],
             'gameCount': 0,
+            'debug': ' | '.join(debug_info),
         }
 
     school_game_counts = {s: len(g) for s, g in games_by_school.items()}
@@ -1081,7 +1091,7 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
             print(f"[PDF Extract] First page text (first 200 chars): {first_page_text[:200] if first_page_text else 'EMPTY'}")
             raise HTTPException(
                 status_code=400,
-                detail=f"No games found. format={detected_format} fileSize={len(content)} reqSchool={result.get('requiresSchoolSelection')} gameCount={result.get('gameCount')} first100={first_page_text[:100] if first_page_text else 'NONE'}"
+                detail=f"No games found. format={detected_format} reqSchool={result.get('requiresSchoolSelection')} debug={result.get('debug', 'none')}"
             )
 
         if result['gameCount'] > MAX_GAMES:
