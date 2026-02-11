@@ -59,8 +59,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("PDF service error:", error);
+    console.error("PDF_SERVICE_URL was:", PDF_SERVICE_URL);
     return NextResponse.json(
-      { success: false, error: "PDF service unavailable. Make sure the Python service is running on port 8001." },
+      {
+        success: false,
+        error: `PDF service unavailable (${PDF_SERVICE_URL}). ${error instanceof Error ? error.message : String(error)}`,
+      },
       { status: 503 }
     );
   }
