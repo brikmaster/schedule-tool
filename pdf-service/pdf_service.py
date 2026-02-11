@@ -717,12 +717,12 @@ def _parse_iowa_date(date_text: str, year: int) -> Optional[str]:
     return f"{month}/{day}/{year}"
 
 
-def _build_column_ranges(col_positions: List[Tuple[float, str]], page_width: float) -> List[Tuple[float, float, str]]:
+def _build_column_ranges(col_positions: List[Tuple[float, str]], page_width: float, date_col_right: float = 160.0) -> List[Tuple[float, float, str]]:
     """Build (left, right, name) ranges using midpoints between column headers."""
     ranges = []
     for i, (cx, name) in enumerate(col_positions):
         if i == 0:
-            left = 160.0  # Just past the Date column
+            left = date_col_right  # Just past the Date column
         else:
             left = (col_positions[i - 1][0] + cx) / 2
         if i == len(col_positions) - 1:
@@ -802,10 +802,15 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                 )
 
                 # Extract school column positions (skip "School" and "Date" labels)
+                # Also track Date column position for relative thresholds
                 col_positions = []
+                date_x0 = None
                 for w in row_words:
                     txt = w['text'].strip()
-                    if txt in ('School', 'Date'):
+                    if txt.lower() == 'school':
+                        continue
+                    if txt.lower() == 'date':
+                        date_x0 = w['x0']
                         continue
                     col_positions.append((w['x0'], txt))
 
@@ -813,14 +818,21 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                     debug_info.append(f"group@{header_y:.0f}:no_cols")
                     continue
 
-                debug_info.append(f"group@{header_y:.0f}:yr={year},cols={len(col_positions)},names={[n for _,n in col_positions[:3]]}")
-                col_ranges = _build_column_ranges(col_positions, page_width)
+                # Compute dynamic thresholds based on actual positions
+                first_col_x0 = col_positions[0][0]
+                date_col_right = first_col_x0 - 10  # Date column ends just before first school column
+                data_start_x0 = date_col_right  # Skip everything before this for opponent data
+
+                debug_info.append(f"group@{header_y:.0f}:yr={year},cols={len(col_positions)},names={[n for _,n in col_positions[:3]]},dateX={date_x0},col0X={first_col_x0:.0f}")
+                col_ranges = _build_column_ranges(col_positions, page_width, date_col_right)
 
                 # Find Week rows for this group (directly below header, within ~250px)
+                # Week labels should be to the left of the first school column
+                week_x0_limit = first_col_x0
                 week_rows = []
                 for w in words:
                     wm = re.match(r'Week\s+(\d+)', w['text'].strip())
-                    if wm and w['x0'] < 50 and w['top'] > header_y and w['top'] < header_y + 250:
+                    if wm and w['x0'] < week_x0_limit and w['top'] > header_y and w['top'] < header_y + 250:
                         week_rows.append((w['top'], int(wm.group(1))))
 
                 week_rows.sort(key=lambda x: x[0])
@@ -833,10 +845,10 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                         key=lambda w: w['x0']
                     )
 
-                    # Extract date from the Date column (~x0 100-170)
+                    # Extract date from the Date column (between School label and first school column)
                     date_text = None
                     for w in row_words:
-                        if 90 < w['x0'] < 170 and not w['text'].strip().startswith('Week'):
+                        if date_col_right - 80 < w['x0'] < first_col_x0 and not w['text'].strip().startswith('Week'):
                             date_text = w['text'].strip()
                             break
 
@@ -846,7 +858,7 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
 
                     # Assign opponent words to school columns (skip Week and Date words)
                     for w in row_words:
-                        if w['x0'] < 160:  # Skip "Week N" and date
+                        if w['x0'] < data_start_x0:  # Skip "Week N" and date
                             continue
 
                         school_name = _assign_word_to_column(w['x0'], col_ranges)
