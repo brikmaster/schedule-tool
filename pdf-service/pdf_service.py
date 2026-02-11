@@ -836,23 +836,26 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                     if not game_date:
                         continue
 
-                    # Assign opponent words to school columns (skip Week and Date words)
+                    # Group words by column, then create one game per column
+                    column_words = {}
                     for w in row_words:
-                        if w['x0'] < data_start_x0:  # Skip "Week N" and date
+                        if w['x0'] < data_start_x0:
                             continue
-
                         school_name = _assign_word_to_column(w['x0'], col_ranges)
                         if not school_name:
                             continue
+                        txt = w['text'].strip()
+                        if txt:
+                            column_words.setdefault(school_name, []).append(txt)
 
-                        opponent_text = w['text'].strip()
+                    for school_name, word_list in column_words.items():
+                        opponent_text = ' '.join(word_list)
                         if not opponent_text:
                             continue
 
                         is_away = opponent_text.lower().startswith('at ')
                         opponent_raw = re.sub(r'^at\s+', '', opponent_text, flags=re.IGNORECASE).strip()
 
-                        # Parse comma-separated names into (team, city)
                         school_clean, school_city = _parse_iowa_team_name(school_name)
                         opp_clean, opp_city = _parse_iowa_team_name(opponent_raw)
 
