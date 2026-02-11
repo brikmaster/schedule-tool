@@ -7,6 +7,7 @@ from datetime import datetime
 import uvicorn
 import io
 
+SERVICE_VERSION = "v7"  # bump to verify deployments
 app = FastAPI(title="PDF Schedule Extraction Service")
 
 # CORS middleware for Next.js API route
@@ -20,6 +21,11 @@ app.add_middleware(
 
 MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 MAX_GAMES = 400
+
+
+@app.get("/version")
+def get_version():
+    return {"version": SERVICE_VERSION}
 
 
 def detect_schedule_star_format(text: str) -> bool:
@@ -1068,7 +1074,10 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
             result = extract_cif_bracket_format(pdf_file)
         elif detect_iowa_hs_format(first_page_text):
             detected_format = "iowa_hs"
-            result = extract_iowa_hs_format(pdf_file, school_filter=school)
+            try:
+                result = extract_iowa_hs_format(pdf_file, school_filter=school)
+            except Exception as iowa_err:
+                raise HTTPException(status_code=400, detail=f"Iowa HS extractor crashed: {type(iowa_err).__name__}: {iowa_err}")
         elif detect_schedule_star_format(first_page_text):
             detected_format = "schedule_star"
             result = extract_schedule_star_format(pdf_file)
@@ -1091,7 +1100,7 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
             print(f"[PDF Extract] First page text (first 200 chars): {first_page_text[:200] if first_page_text else 'EMPTY'}")
             raise HTTPException(
                 status_code=400,
-                detail=f"No games found. format={detected_format} reqSchool={result.get('requiresSchoolSelection')} debug={result.get('debug', 'none')}"
+                detail=f"No games found. ver={SERVICE_VERSION} format={detected_format} reqSchool={result.get('requiresSchoolSelection')} debug={result.get('debug', 'none')}"
             )
 
         if result['gameCount'] > MAX_GAMES:
