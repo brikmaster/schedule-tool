@@ -772,8 +772,14 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
             debug_info.append(f"years={[y for _,y in year_markers]}")
 
             # Find "School" header rows and their y-positions
-            school_headers = [w for w in words if w['text'].strip() == 'School' and w['x0'] < 50]
-            debug_info.append(f"schoolHdrs={len(school_headers)}")
+            # Use broader x0 threshold and case-insensitive match for different PDF versions
+            school_headers = [w for w in words if w['text'].strip().lower() == 'school' and w['x0'] < 100]
+            if not school_headers:
+                # Debug: show left-edge words that might be the header
+                left_words = [(w['text'].strip(), round(w['x0'], 1)) for w in words if w['x0'] < 120 and 'chool' in w['text'].lower()]
+                debug_info.append(f"schoolHdrs=0,leftWords={left_words[:5]}")
+            else:
+                debug_info.append(f"schoolHdrs={len(school_headers)},x0={[round(sh['x0'],1) for sh in school_headers]}")
 
             for sh in school_headers:
                 header_y = sh['top']
