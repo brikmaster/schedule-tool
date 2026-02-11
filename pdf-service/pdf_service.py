@@ -754,6 +754,10 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                         year = ym_year
                         break
 
+                # Only extract 2026 games
+                if year != 2026:
+                    continue
+
                 # Get all words on the header row (school names + "School" + "Date")
                 row_words = sorted(
                     [w for w in words if abs(w['top'] - header_y) < 2],
