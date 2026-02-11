@@ -888,16 +888,12 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                         games_by_school[school_name].append(game)
 
     if not games_by_school:
-        print(f"[Iowa HS] No games extracted. Debug: {' | '.join(debug_info)}")
-        return {
-            'success': False,
-            'mainTeam': None,
-            'mainCity': None,
-            'mainState': 'IA',
-            'games': [],
-            'gameCount': 0,
-            'debug': ' | '.join(debug_info),
-        }
+        debug_str = ' | '.join(debug_info)
+        print(f"[Iowa HS] No games extracted. Debug: {debug_str}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Iowa HS: no games extracted. debug={debug_str[:400]}"
+        )
 
     school_game_counts = {s: len(g) for s, g in games_by_school.items()}
 
@@ -1089,8 +1085,8 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
             result = extract_maxpreps_schedule(pdf_file)
         print(f"[PDF Extract] format={detected_format} gameCount={result.get('gameCount')} reqSchool={result.get('requiresSchoolSelection')}")
 
-        # If no games found, try table extraction fallback (unless awaiting school selection)
-        if result['gameCount'] == 0 and not result.get('requiresSchoolSelection'):
+        # If no games found, try table extraction fallback (skip for known formats and school selection)
+        if result['gameCount'] == 0 and not result.get('requiresSchoolSelection') and detected_format == 'maxpreps_fallback':
             pdf_file.seek(0)
             result = extract_table_schedule(pdf_file)
 
