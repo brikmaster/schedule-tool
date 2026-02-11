@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const rawBody = await response.text();
       return NextResponse.json(
-        { success: false, error: `[upstream ${response.status}] ${rawBody}` },
+        { success: false, error: `[upstream ${response.status}] fileSize=${fileBuffer.byteLength} fileName=${file.name} ${rawBody}` },
         { status: response.status }
       );
     }

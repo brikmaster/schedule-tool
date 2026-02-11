@@ -1075,9 +1075,11 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
 
         # Validate game count (skip if awaiting school selection)
         if result['gameCount'] == 0 and not result.get('requiresSchoolSelection'):
+            print(f"[PDF Extract] No games found. File size: {len(content)} bytes, filename: {file.filename}")
+            print(f"[PDF Extract] First page text (first 200 chars): {first_page_text[:200] if first_page_text else 'EMPTY'}")
             raise HTTPException(
                 status_code=400,
-                detail="No games found in PDF. This can happen with scanned or image-based PDFs."
+                detail=f"No games found in PDF. fileSize={len(content)} detectedText={bool(first_page_text)} first100={first_page_text[:100] if first_page_text else 'NONE'}"
             )
 
         if result['gameCount'] > MAX_GAMES:
