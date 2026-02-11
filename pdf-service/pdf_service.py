@@ -1052,21 +1052,23 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
         pdf_file.seek(0)
 
         # Detect and route to correct extractor
+        detected_format = "unknown"
         if detect_cif_bracket_format(first_page_text):
-            print("[PDF Extract] Detected CIF bracket format")
+            detected_format = "cif_bracket"
             result = extract_cif_bracket_format(pdf_file)
         elif detect_iowa_hs_format(first_page_text):
-            print(f"[PDF Extract] Detected Iowa HS format (school filter: {school})")
+            detected_format = "iowa_hs"
             result = extract_iowa_hs_format(pdf_file, school_filter=school)
         elif detect_schedule_star_format(first_page_text):
-            print("[PDF Extract] Detected Schedule Star format")
+            detected_format = "schedule_star"
             result = extract_schedule_star_format(pdf_file)
         elif detect_texas_isd_format(first_page_text):
-            print(f"[PDF Extract] Detected Texas ISD format (school filter: {school})")
+            detected_format = "texas_isd"
             result = extract_texas_isd_format(pdf_file, school_filter=school)
         else:
-            print("[PDF Extract] Trying MaxPreps format")
+            detected_format = "maxpreps_fallback"
             result = extract_maxpreps_schedule(pdf_file)
+        print(f"[PDF Extract] format={detected_format} gameCount={result.get('gameCount')} reqSchool={result.get('requiresSchoolSelection')}")
 
         # If no games found, try table extraction fallback (unless awaiting school selection)
         if result['gameCount'] == 0 and not result.get('requiresSchoolSelection'):
@@ -1079,7 +1081,7 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
             print(f"[PDF Extract] First page text (first 200 chars): {first_page_text[:200] if first_page_text else 'EMPTY'}")
             raise HTTPException(
                 status_code=400,
-                detail=f"No games found in PDF. fileSize={len(content)} detectedText={bool(first_page_text)} first100={first_page_text[:100] if first_page_text else 'NONE'}"
+                detail=f"No games found. format={detected_format} fileSize={len(content)} reqSchool={result.get('requiresSchoolSelection')} gameCount={result.get('gameCount')} first100={first_page_text[:100] if first_page_text else 'NONE'}"
             )
 
         if result['gameCount'] > MAX_GAMES:
