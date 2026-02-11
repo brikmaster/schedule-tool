@@ -27,9 +27,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Read file into buffer to ensure clean forwarding
+    const fileBuffer = await file.arrayBuffer();
+    const fileBlob = new Blob([fileBuffer], { type: file.type || "application/pdf" });
+
     // Forward to Python service
     const pdfFormData = new FormData();
-    pdfFormData.append("file", file);
+    pdfFormData.append("file", fileBlob, file.name);
 
     // Build URL with optional school parameter
     const url = school
