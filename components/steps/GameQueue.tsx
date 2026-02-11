@@ -76,7 +76,8 @@ export default function GameQueue() {
     : null;
 
   const modalCity = currentModal && resolutionModal
-    ? state.rawData[currentModal.rowIndex]?.[
+    ? (resolutionModal.team === "home" ? currentModal.homeCity : currentModal.awayCity) ||
+      state.rawData[currentModal.rowIndex]?.[
         resolutionModal.team === "home"
           ? state.columnMapping.homeCity || ""
           : state.columnMapping.awayCity || ""
@@ -84,7 +85,8 @@ export default function GameQueue() {
     : undefined;
 
   const modalState = currentModal && resolutionModal
-    ? state.rawData[currentModal.rowIndex]?.[
+    ? (resolutionModal.team === "home" ? currentModal.homeState : currentModal.awayState) ||
+      state.rawData[currentModal.rowIndex]?.[
         resolutionModal.team === "home"
           ? state.columnMapping.homeState || ""
           : state.columnMapping.awayState || ""
@@ -205,7 +207,7 @@ export default function GameQueue() {
                   <TeamCell
                     team={game.awayTeam}
                     onClick={() =>
-                      game.awayTeam.status === "ambiguous" &&
+                      (game.awayTeam.status === "ambiguous" || game.awayTeam.status === "not_found") &&
                       setResolutionModal({
                         isOpen: true,
                         gameId: game.id,
@@ -218,7 +220,7 @@ export default function GameQueue() {
                   <TeamCell
                     team={game.homeTeam}
                     onClick={() =>
-                      game.homeTeam.status === "ambiguous" &&
+                      (game.homeTeam.status === "ambiguous" || game.homeTeam.status === "not_found") &&
                       setResolutionModal({
                         isOpen: true,
                         gameId: game.id,
@@ -231,17 +233,17 @@ export default function GameQueue() {
                   <StatusBadge status={game.status} />
                 </td>
                 <td className="px-4 py-3 border-b border-[var(--ss-border)]">
-                  {game.status === "ambiguous" && (
+                  {(game.status === "ambiguous" || game.status === "error") && (
                     <Button
                       variant="secondary"
                       onClick={() => {
-                        if (game.homeTeam.status === "ambiguous") {
+                        if (game.homeTeam.status === "ambiguous" || game.homeTeam.status === "not_found") {
                           setResolutionModal({
                             isOpen: true,
                             gameId: game.id,
                             team: "home",
                           });
-                        } else if (game.awayTeam.status === "ambiguous") {
+                        } else if (game.awayTeam.status === "ambiguous" || game.awayTeam.status === "not_found") {
                           setResolutionModal({
                             isOpen: true,
                             gameId: game.id,

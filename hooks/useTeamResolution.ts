@@ -77,6 +77,21 @@ export function useTeamResolution() {
           allHomeTeams = homeResponse.result?.collections?.teamCollection?.list || [];
         }
 
+        // If still no results, try with just the first word (handles "Riverview Sarasota" → "Riverview")
+        if (allHomeTeams.length === 0) {
+          const firstWord = searchHomeName.split(/\s+/)[0];
+          if (firstWord && firstWord.length >= 3 && firstWord !== searchHomeName) {
+            homeResponse = await searchTeams({
+              teamName: firstWord,
+              state: homeState,
+              recommendedFor: "addingGames",
+              ignoreUserCreatedTeams: true,
+              count: 10,
+            });
+            allHomeTeams = homeResponse.result?.collections?.teamCollection?.list || [];
+          }
+        }
+
         // Filter results to only include teams from the selected organization
         const filteredHomeTeams = allHomeTeams.filter((team: any) => {
           // Check multiple possible orgId field names
@@ -182,6 +197,21 @@ export function useTeamResolution() {
             count: 10,
           });
           allAwayTeams = awayResponse.result?.collections?.teamCollection?.list || [];
+        }
+
+        // If still no results, try with just the first word (handles "Riverview Sarasota" → "Riverview")
+        if (allAwayTeams.length === 0) {
+          const firstWord = searchAwayName.split(/\s+/)[0];
+          if (firstWord && firstWord.length >= 3 && firstWord !== searchAwayName) {
+            awayResponse = await searchTeams({
+              teamName: firstWord,
+              state: awayState,
+              recommendedFor: "addingGames",
+              ignoreUserCreatedTeams: true,
+              count: 10,
+            });
+            allAwayTeams = awayResponse.result?.collections?.teamCollection?.list || [];
+          }
         }
 
         // Filter results to only include teams from the selected organization

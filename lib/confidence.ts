@@ -69,8 +69,10 @@ export function autoMatchTeam(
     };
   }
 
-  // Auto-match if multiple results but one has very high confidence
-  if (sorted.length > 1 && best.confidence >= CONFIDENCE_THRESHOLD) {
+  // Auto-match if multiple results but one has clearly higher confidence
+  const secondBest = sorted[1];
+  const confidenceGap = best.confidence - secondBest.confidence;
+  if (sorted.length > 1 && best.confidence >= CONFIDENCE_THRESHOLD && confidenceGap >= 10) {
     return {
       originalText: searchTerm,
       status: "matched",

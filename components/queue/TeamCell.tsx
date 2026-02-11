@@ -51,13 +51,16 @@ export default function TeamCell({ team, onClick }: TeamCellProps) {
 
   if (team.status === "not_found") {
     return (
-      <div className="flex items-center gap-2">
+      <div
+        className="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded transition-colors"
+        onClick={onClick}
+      >
         <div className="w-2 h-2 rounded-full bg-[var(--ss-error)] flex-shrink-0" />
         <div className="min-w-0">
           <div className="text-[var(--ss-text)] truncate">
             "{team.originalText}"
           </div>
-          <div className="text-xs text-[var(--ss-error)]">No matches found</div>
+          <div className="text-xs text-[var(--ss-error)]">No matches - click to search</div>
         </div>
       </div>
     );

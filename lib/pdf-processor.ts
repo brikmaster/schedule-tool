@@ -21,6 +21,7 @@ interface VisionResult {
   games: ExtractedGame[];
   mainTeam: string;
   format: string;
+  debug?: string;
 }
 
 const EXTRACTION_PROMPT = `Extract all games/matches from this PDF schedule. Return valid JSON only, no other text.
@@ -54,13 +55,17 @@ Rules:
 - For games with TBA/TBD time, set time to null.
 - Strip mascot names from team names (e.g., "Lincoln Lions" → "Lincoln").
 - Keep "High School", "HS", etc. in team names.
+- Do NOT append city names to team names for disambiguation. Use the city/state fields instead. Example: "Riverview" in Sarasota should be homeTeam: "Riverview", homeCity: "Sarasota" — NOT homeTeam: "Riverview Sarasota".
 - If city/state are available, include them. Otherwise null.
 - Only include actual games, not bye weeks, headers, or notes.
 - If a game has a score, mark isCompleted: true.
 - SKIP games with placeholder teams like "W-1", "W-2", "L-3", "TBD", "Winner of...", "Loser of...". Only include games where both teams are real, named schools.
 - For bracket formats with "@ Venue" notation, the venue/host site is the home team's location.
 - For Hawaii schedules: all schools are in state "HI".
-- For completed games without a listed time, set time to "7:00 PM".`;
+- For completed games without a listed time, set time to "7:00 PM".
+- Convert shorthand times: "7p" → "7:00 PM", "12p" → "12:00 PM", "6p" → "6:00 PM", "5p" → "5:00 PM", "2p" → "2:00 PM", "7a" → "7:00 AM", etc. Always output times in "h:mm AM/PM" format.
+- IMPORTANT: Bracket PDFs often show date+time combined like "2/14 @ 7p" or "2/14 @ 12p". The part before @ is the date, the part after @ is the TIME. Extract both. "2/14 @ 7p" → date "2/14/2026", time "7:00 PM". Do NOT set time to null when it's present in this format.
+- Read each game's date and time VERY carefully from the bracket box directly above or beside that matchup. Each bracket box has its own date/time — do not copy from neighboring boxes. Common bracket times include 12p, 2p, 5p, 6p, 7p. Double-check each one.`;
 
 function normalizeDate(dateStr: string): string {
   // Handle YYYY-MM-DD → M/D/YYYY
@@ -127,8 +132,11 @@ export async function extractWithVision(
   if (fenceMatch) jsonStr = fenceMatch[1].trim();
 
   const parsed = JSON.parse(jsonStr);
+  console.log(`[vision] Raw response: ${(parsed.games || []).length} games, mainTeam: "${parsed.mainTeam}", format: "${parsed.format}"`);
+  console.log(`[vision] First 3 raw games:`, JSON.stringify((parsed.games || []).slice(0, 3)));
 
   // Validate and normalize games
+  const preFilterCount = (parsed.games || []).length;
   const games: ExtractedGame[] = (parsed.games || [])
     .filter(validateGame)
     .map((g: any) => ({
@@ -145,10 +153,14 @@ export async function extractWithVision(
       isCompleted: !!g.isCompleted,
     }));
 
+  const debug = `rawText=${textBlock.text.length}chars, parsed=${preFilterCount}games, valid=${games.length}games, stopReason=${response.stop_reason}`;
+  console.log(`[vision] ${debug}`);
+
   return {
     success: true,
     games,
     mainTeam: parsed.mainTeam || "",
     format: parsed.format || "unknown",
+    debug,
   };
 }

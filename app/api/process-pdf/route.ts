@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
       const response = await fetch(url, {
         method: "POST",
         body: pdfFormData,
+        signal: AbortSignal.timeout(15000),
       });
 
       if (response.ok) {
@@ -79,6 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 3/4: Try vision fallback (only if API key set and not in school-selection flow)
+    let visionError: string | null = null;
     if (process.env.ANTHROPIC_API_KEY && !school) {
       try {
         console.log("[vision] Attempting Claude Vision extraction");
@@ -98,21 +100,31 @@ export async function POST(request: NextRequest) {
             source: "vision",
           });
         }
-        console.log("[vision] 0 games extracted");
+        visionError = `Vision returned 0 games (${visionResult.debug})`;
+        console.log("[vision] 0 games extracted:", visionResult.debug);
       } catch (err) {
-        console.log("[vision] Error:", err);
+        visionError = err instanceof Error ? err.message : String(err);
+        console.log("[vision] Error:", visionError);
       }
+    } else if (!process.env.ANTHROPIC_API_KEY) {
+      visionError = "ANTHROPIC_API_KEY not set";
     }
 
-    // Step 5: Both failed — return the pdfplumber error
+    // Step 5: Both failed — return details from both attempts
+    const errorDetail = [
+      `pdfplumber: ${pdfplumberError || "unknown"}`,
+      `vision: ${visionError || "skipped"}`,
+    ].join("; ");
+    console.log(`[both-failed] ${errorDetail}`);
     return NextResponse.json(
-      { success: false, error: pdfplumberError || "No games found in PDF" },
+      { success: false, error: `No games extracted. ${errorDetail}` },
       { status: 422 }
     );
   } catch (error) {
-    console.error("PDF service error:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[catch] PDF processing error:", msg);
     return NextResponse.json(
-      { success: false, error: "PDF service unavailable. Make sure the Python service is running." },
+      { success: false, error: `PDF processing failed: ${msg}` },
       { status: 503 }
     );
   }
