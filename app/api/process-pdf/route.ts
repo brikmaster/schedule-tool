@@ -42,15 +42,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      let detail = "Failed to process PDF";
-      try {
-        const error = await response.json();
-        detail = error.detail || detail;
-      } catch {
-        detail = await response.text();
-      }
+      const rawBody = await response.text();
       return NextResponse.json(
-        { success: false, error: `[upstream ${response.status}] ${detail} (url=${url})` },
+        { success: false, error: `[upstream ${response.status}] ${rawBody}` },
         { status: response.status }
       );
     }
