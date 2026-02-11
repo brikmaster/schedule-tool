@@ -1,8 +1,9 @@
 import pdfplumber
 import re
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime
 import uvicorn
 import io
 
@@ -663,6 +664,242 @@ def extract_texas_isd_format(pdf_file: io.BytesIO, school_filter: Optional[str] 
     }
 
 
+def detect_iowa_hs_format(text: str) -> bool:
+    indicators = [
+        re.search(r'IOWA HIGH SCHOOL ATHLETIC ASSOCIATION', text, re.IGNORECASE),
+        re.search(r'REGULAR SEASON SCHEDULES', text, re.IGNORECASE),
+        re.search(r'GROUP \d', text),
+        re.search(r'Week \d', text),
+    ]
+    return sum(bool(x) for x in indicators) >= 3
+
+
+def _parse_iowa_date(date_text: str, year: int) -> Optional[str]:
+    """Convert 'Aug. 29' or 'Sept. 5' to 'MM/DD/YYYY'."""
+    month_map = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+        'jul': 7, 'aug': 8, 'sep': 9, 'sept': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    }
+    m = re.match(r'([A-Za-z]+)\.?\s+(\d{1,2})', date_text.strip())
+    if not m:
+        return None
+    month_str = m.group(1).lower().rstrip('.')
+    day = int(m.group(2))
+    month = month_map.get(month_str)
+    if not month:
+        return None
+    return f"{month}/{day}/{year}"
+
+
+def _build_column_ranges(col_positions: List[Tuple[float, str]], page_width: float) -> List[Tuple[float, float, str]]:
+    """Build (left, right, name) ranges using midpoints between column headers."""
+    ranges = []
+    for i, (cx, name) in enumerate(col_positions):
+        if i == 0:
+            left = 160.0  # Just past the Date column
+        else:
+            left = (col_positions[i - 1][0] + cx) / 2
+        if i == len(col_positions) - 1:
+            right = page_width
+        else:
+            right = (cx + col_positions[i + 1][0]) / 2
+        ranges.append((left, right, name))
+    return ranges
+
+
+def _assign_word_to_column(word_x0: float, col_ranges: List[Tuple[float, float, str]]) -> Optional[str]:
+    """Find which column range a word falls into."""
+    for left, right, name in col_ranges:
+        if left <= word_x0 < right:
+            return name
+    return None
+
+
+def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = None) -> Dict:
+    """
+    Extract schedule from Iowa HS Athletic Association grid PDFs.
+    Column-based: each school is a column, rows are weeks.
+    Supports multiple groups per year, 2025 + 2026 sections.
+    """
+    games_by_school = {}
+
+    with pdfplumber.open(pdf_file) as pdf:
+        for page in pdf.pages:
+            page_width = page.width
+            words = page.extract_words(keep_blank_chars=True, x_tolerance=3, y_tolerance=3)
+            if not words:
+                continue
+
+            # Sort words by y then x
+            words.sort(key=lambda w: (w['top'], w['x0']))
+
+            # Find year markers
+            year_markers = []
+            for w in words:
+                if w['text'].strip() in ('2025', '2026'):
+                    year_markers.append((w['top'], int(w['text'].strip())))
+            if not year_markers:
+                year_markers = [(0, 2025)]
+
+            # Find "School" header rows and their y-positions
+            school_headers = [w for w in words if w['text'].strip() == 'School' and w['x0'] < 50]
+
+            for sh in school_headers:
+                header_y = sh['top']
+
+                # Determine which year this group belongs to
+                year = 2025
+                for ym_top, ym_year in sorted(year_markers, reverse=True):
+                    if header_y > ym_top:
+                        year = ym_year
+                        break
+
+                # Get all words on the header row (school names + "School" + "Date")
+                row_words = sorted(
+                    [w for w in words if abs(w['top'] - header_y) < 2],
+                    key=lambda w: w['x0']
+                )
+
+                # Extract school column positions (skip "School" and "Date" labels)
+                col_positions = []
+                for w in row_words:
+                    txt = w['text'].strip()
+                    if txt in ('School', 'Date'):
+                        continue
+                    col_positions.append((w['x0'], txt))
+
+                if not col_positions:
+                    continue
+
+                col_ranges = _build_column_ranges(col_positions, page_width)
+
+                # Find Week rows for this group (directly below header, within ~250px)
+                week_rows = []
+                for w in words:
+                    wm = re.match(r'Week\s+(\d+)', w['text'].strip())
+                    if wm and w['x0'] < 50 and w['top'] > header_y and w['top'] < header_y + 250:
+                        week_rows.append((w['top'], int(wm.group(1))))
+
+                week_rows.sort(key=lambda x: x[0])
+
+                for week_y, week_num in week_rows:
+                    # Get all words on this week's row
+                    row_words = sorted(
+                        [w for w in words if abs(w['top'] - week_y) < 2],
+                        key=lambda w: w['x0']
+                    )
+
+                    # Extract date from the Date column (~x0 100-170)
+                    date_text = None
+                    for w in row_words:
+                        if 90 < w['x0'] < 170 and not w['text'].strip().startswith('Week'):
+                            date_text = w['text'].strip()
+                            break
+
+                    game_date = _parse_iowa_date(date_text, year) if date_text else None
+                    if not game_date:
+                        continue
+
+                    # Assign opponent words to school columns (skip Week and Date words)
+                    for w in row_words:
+                        if w['x0'] < 160:  # Skip "Week N" and date
+                            continue
+
+                        school_name = _assign_word_to_column(w['x0'], col_ranges)
+                        if not school_name:
+                            continue
+
+                        opponent_text = w['text'].strip()
+                        if not opponent_text:
+                            continue
+
+                        is_away = opponent_text.lower().startswith('at ')
+                        opponent = re.sub(r'^at\s+', '', opponent_text, flags=re.IGNORECASE).strip()
+
+                        if is_away:
+                            home_team = opponent
+                            away_team = school_name
+                        else:
+                            home_team = school_name
+                            away_team = opponent
+
+                        game = {
+                            'date': game_date,
+                            'time': None,
+                            'homeTeam': home_team,
+                            'awayTeam': away_team,
+                            'homeCity': None,
+                            'homeState': 'IA',
+                            'awayCity': None,
+                            'awayState': 'IA',
+                            'homeScore': None,
+                            'awayScore': None,
+                            'isCompleted': False,
+                        }
+
+                        if school_name not in games_by_school:
+                            games_by_school[school_name] = []
+                        games_by_school[school_name].append(game)
+
+    if not games_by_school:
+        return {
+            'success': False,
+            'mainTeam': None,
+            'mainCity': None,
+            'mainState': 'IA',
+            'games': [],
+            'gameCount': 0,
+        }
+
+    school_game_counts = {s: len(g) for s, g in games_by_school.items()}
+
+    if not school_filter:
+        print(f"[Iowa HS] Multi-school PDF. {len(games_by_school)} schools found.")
+        return {
+            'success': True,
+            'requiresSchoolSelection': True,
+            'availableSchools': [
+                {'name': s, 'gameCount': c}
+                for s, c in sorted(school_game_counts.items())
+            ],
+            'mainTeam': None,
+            'mainCity': None,
+            'mainState': 'IA',
+            'games': [],
+            'gameCount': 0,
+        }
+
+    games = games_by_school.get(school_filter, [])
+    if not games:
+        return {
+            'success': False,
+            'error': f"School '{school_filter}' not found in PDF",
+            'availableSchools': [
+                {'name': s, 'gameCount': c}
+                for s, c in sorted(school_game_counts.items())
+            ],
+            'mainTeam': None,
+            'mainCity': None,
+            'mainState': 'IA',
+            'games': [],
+            'gameCount': 0,
+        }
+
+    print(f"[Iowa HS] Extracted {len(games)} games for {school_filter}")
+    return {
+        'success': True,
+        'mainTeam': school_filter,
+        'mainCity': None,
+        'mainState': 'IA',
+        'games': games,
+        'gameCount': len(games),
+        'availableSchools': [
+            {'name': s, 'gameCount': c}
+            for s, c in sorted(school_game_counts.items())
+        ],
+    }
+
+
 def extract_table_schedule(pdf_file: io.BytesIO) -> Dict:
     """
     Fallback: Extract schedule from table-based PDFs.
@@ -758,6 +995,9 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
         if detect_cif_bracket_format(first_page_text):
             print("[PDF Extract] Detected CIF bracket format")
             result = extract_cif_bracket_format(pdf_file)
+        elif detect_iowa_hs_format(first_page_text):
+            print(f"[PDF Extract] Detected Iowa HS format (school filter: {school})")
+            result = extract_iowa_hs_format(pdf_file, school_filter=school)
         elif detect_schedule_star_format(first_page_text):
             print("[PDF Extract] Detected Schedule Star format")
             result = extract_schedule_star_format(pdf_file)
