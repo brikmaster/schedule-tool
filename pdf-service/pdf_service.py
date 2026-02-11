@@ -19,7 +19,7 @@ app.add_middleware(
 )
 
 MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
-MAX_GAMES = 200
+MAX_GAMES = 400
 
 
 def detect_schedule_star_format(text: str) -> bool:
