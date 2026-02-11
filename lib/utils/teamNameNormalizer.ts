@@ -94,6 +94,9 @@ export function normalizeTeamName(name: string): string {
   // This handles event notes, location notes, and other annotations
   normalized = normalized.replace(/\s*\([^)]*\)\s*/g, ' ');
 
+  // Normalize hyphens to spaces (e.g., "Clinton-Massie" -> "Clinton Massie")
+  normalized = normalized.replace(/-/g, ' ');
+
   // Remove city abbreviations after slashes (e.g., "Santiago/C" -> "Santiago", "Poly/LB" -> "Poly")
   // This creates more general names that will match ambiguously, allowing user to select correct team
   // Common patterns: /C, /OC, /LB, /O, etc.

@@ -13,7 +13,7 @@ export function calculateConfidence(
 ): number {
   let score = 0;
 
-  // Name matching with fuzzy logic (0-40 points)
+  // Name matching with fuzzy logic (0-50 points)
   // Try matching against teamName, minTeamName, and shortTeamName
   const teamNameSimilarity = calculateNameSimilarity(searchTerm, team.teamName);
   const minNameSimilarity = calculateNameSimilarity(searchTerm, team.minTeamName);
@@ -21,16 +21,16 @@ export function calculateConfidence(
     ? calculateNameSimilarity(searchTerm, team.shortTeamName)
     : 0;
 
-  // Use the best similarity score and scale it to 0-40 points
+  // Use the best similarity score and scale it to 0-50 points
   const bestSimilarity = Math.max(teamNameSimilarity, minNameSimilarity, shortNameSimilarity);
-  score += Math.round((bestSimilarity / 100) * 40);
+  score += Math.round((bestSimilarity / 100) * 50);
 
-  // Location match (0-60 points)
+  // Location match (0-50 points)
   if (inputState && team.state.toLowerCase() === inputState.toLowerCase()) {
     score += 30;
   }
   if (inputCity && team.city.toLowerCase() === inputCity.toLowerCase()) {
-    score += 30;
+    score += 20;
   }
 
   return Math.min(score, 100);

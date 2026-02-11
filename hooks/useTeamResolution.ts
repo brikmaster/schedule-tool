@@ -65,6 +65,18 @@ export function useTeamResolution() {
           allHomeTeams = homeResponse.result?.collections?.teamCollection?.list || [];
         }
 
+        // If still no results and orgId was set, retry without org filter
+        if (allHomeTeams.length === 0 && state.defaults.orgId) {
+          homeResponse = await searchTeams({
+            teamName: searchHomeName,
+            state: homeState,
+            recommendedFor: "addingGames",
+            ignoreUserCreatedTeams: true,
+            count: 10,
+          });
+          allHomeTeams = homeResponse.result?.collections?.teamCollection?.list || [];
+        }
+
         // Filter results to only include teams from the selected organization
         const filteredHomeTeams = allHomeTeams.filter((team: any) => {
           // Check multiple possible orgId field names
@@ -153,6 +165,18 @@ export function useTeamResolution() {
             teamName: searchAwayName,
             state: awayState,
             orgId: state.defaults.orgId || undefined,
+            recommendedFor: "addingGames",
+            ignoreUserCreatedTeams: true,
+            count: 10,
+          });
+          allAwayTeams = awayResponse.result?.collections?.teamCollection?.list || [];
+        }
+
+        // If still no results and orgId was set, retry without org filter
+        if (allAwayTeams.length === 0 && state.defaults.orgId) {
+          awayResponse = await searchTeams({
+            teamName: searchAwayName,
+            state: awayState,
             recommendedFor: "addingGames",
             ignoreUserCreatedTeams: true,
             count: 10,
