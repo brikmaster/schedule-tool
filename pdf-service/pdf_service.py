@@ -7,7 +7,7 @@ from datetime import datetime
 import uvicorn
 import io
 
-SERVICE_VERSION = "v7"  # bump to verify deployments
+SERVICE_VERSION = "v8"  # bump to verify deployments
 app = FastAPI(title="PDF Schedule Extraction Service")
 
 # CORS middleware for Next.js API route
@@ -1100,7 +1100,7 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
             print(f"[PDF Extract] First page text (first 200 chars): {first_page_text[:200] if first_page_text else 'EMPTY'}")
             raise HTTPException(
                 status_code=400,
-                detail=f"No games found. ver={SERVICE_VERSION} format={detected_format} reqSchool={result.get('requiresSchoolSelection')} debug={result.get('debug', 'none')}"
+                detail=f"No games found. ver={SERVICE_VERSION} format={detected_format} result_keys={list(result.keys())} full_result={str(result)[:500]}"
             )
 
         if result['gameCount'] > MAX_GAMES:
