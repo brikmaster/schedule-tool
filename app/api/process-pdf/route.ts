@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 const PDF_SERVICE_URL = process.env.PDF_SERVICE_URL || "http://localhost:8001";
 
+// GET handler to check config
+export async function GET() {
+  return NextResponse.json({
+    pdfServiceUrl: PDF_SERVICE_URL,
+    timestamp: new Date().toISOString(),
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -14,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Validation
     if (!file || !file.name.toLowerCase().endsWith(".pdf")) {
       return NextResponse.json(
-        { error: "File must be a PDF" },
+        { error: `[validation] File must be a PDF. serviceUrl=${PDF_SERVICE_URL}` },
         { status: 400 }
       );
     }
@@ -34,9 +42,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      let detail = "Failed to process PDF";
+      try {
+        const error = await response.json();
+        detail = error.detail || detail;
+      } catch {
+        detail = await response.text();
+      }
       return NextResponse.json(
-        { success: false, error: error.detail || "Failed to process PDF" },
+        { success: false, error: `[upstream ${response.status}] ${detail} (url=${url})` },
         { status: response.status }
       );
     }
@@ -63,7 +77,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: `PDF service unavailable (${PDF_SERVICE_URL}). ${error instanceof Error ? error.message : String(error)}`,
+        error: `[catch] PDF service unavailable (${PDF_SERVICE_URL}). ${error instanceof Error ? error.message : String(error)}`,
       },
       { status: 503 }
     );
