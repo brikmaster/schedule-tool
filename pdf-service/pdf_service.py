@@ -802,7 +802,12 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
 
                 # Compute dynamic thresholds based on actual positions
                 first_col_x0 = col_positions[0][0]
-                date_col_right = first_col_x0 - 10
+                if date_x0:
+                    date_col_left = date_x0 - 15
+                    date_col_right = date_x0 + 50  # Just past where date text ends
+                else:
+                    date_col_right = first_col_x0 - 10
+                    date_col_left = date_col_right - 80
                 data_start_x0 = date_col_right
 
                 col_ranges = _build_column_ranges(col_positions, page_width, date_col_right)
@@ -828,7 +833,7 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                     # Extract date from the Date column (between School label and first school column)
                     date_text = None
                     for w in row_words:
-                        if date_col_right - 80 < w['x0'] < first_col_x0 and not w['text'].strip().startswith('Week'):
+                        if date_col_left < w['x0'] < first_col_x0 and not w['text'].strip().startswith('Week'):
                             date_text = w['text'].strip()
                             break
 
