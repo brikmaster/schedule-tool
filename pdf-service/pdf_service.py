@@ -7,7 +7,6 @@ from datetime import datetime
 import uvicorn
 import io
 
-SERVICE_VERSION = "v8"  # bump to verify deployments
 app = FastAPI(title="PDF Schedule Extraction Service")
 
 # CORS middleware for Next.js API route
@@ -21,11 +20,6 @@ app.add_middleware(
 
 MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 MAX_GAMES = 400
-
-
-@app.get("/version")
-def get_version():
-    return {"version": SERVICE_VERSION}
 
 
 def detect_schedule_star_format(text: str) -> bool:
@@ -748,19 +742,16 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
     Supports multiple groups per year, 2025 + 2026 sections.
     """
     games_by_school = {}
-    debug_info = []
 
     with pdfplumber.open(pdf_file) as pdf:
-        for page_idx, page in enumerate(pdf.pages):
+        for page in pdf.pages:
             page_width = page.width
             words = page.extract_words(keep_blank_chars=True, x_tolerance=3, y_tolerance=3)
             if not words:
-                debug_info.append(f"p{page_idx}:no_words")
                 continue
 
             # Sort words by y then x
             words.sort(key=lambda w: (w['top'], w['x0']))
-            debug_info.append(f"p{page_idx}:{len(words)}w")
 
             # Find year markers
             year_markers = []
@@ -769,17 +760,9 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                     year_markers.append((w['top'], int(w['text'].strip())))
             if not year_markers:
                 year_markers = [(0, 2025)]
-            debug_info.append(f"years={[y for _,y in year_markers]}")
 
             # Find "School" header rows and their y-positions
-            # Use broader x0 threshold and case-insensitive match for different PDF versions
             school_headers = [w for w in words if w['text'].strip().lower() == 'school' and w['x0'] < 100]
-            if not school_headers:
-                # Debug: show left-edge words that might be the header
-                left_words = [(w['text'].strip(), round(w['x0'], 1)) for w in words if w['x0'] < 120 and 'chool' in w['text'].lower()]
-                debug_info.append(f"schoolHdrs=0,leftWords={left_words[:5]}")
-            else:
-                debug_info.append(f"schoolHdrs={len(school_headers)},x0={[round(sh['x0'],1) for sh in school_headers]}")
 
             for sh in school_headers:
                 header_y = sh['top']
@@ -815,15 +798,13 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                     col_positions.append((w['x0'], txt))
 
                 if not col_positions:
-                    debug_info.append(f"group@{header_y:.0f}:no_cols")
                     continue
 
                 # Compute dynamic thresholds based on actual positions
                 first_col_x0 = col_positions[0][0]
-                date_col_right = first_col_x0 - 10  # Date column ends just before first school column
-                data_start_x0 = date_col_right  # Skip everything before this for opponent data
+                date_col_right = first_col_x0 - 10
+                data_start_x0 = date_col_right
 
-                debug_info.append(f"group@{header_y:.0f}:yr={year},cols={len(col_positions)},names={[n for _,n in col_positions[:3]]},dateX={date_x0},col0X={first_col_x0:.0f}")
                 col_ranges = _build_column_ranges(col_positions, page_width, date_col_right)
 
                 # Find Week rows for this group (directly below header, within ~250px)
@@ -836,7 +817,6 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                         week_rows.append((w['top'], int(wm.group(1))))
 
                 week_rows.sort(key=lambda x: x[0])
-                debug_info.append(f"weeks={len(week_rows)}")
 
                 for week_y, week_num in week_rows:
                     # Get all words on this week's row
@@ -906,12 +886,14 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                         games_by_school[school_name].append(game)
 
     if not games_by_school:
-        debug_str = ' | '.join(debug_info)
-        print(f"[Iowa HS] No games extracted. Debug: {debug_str}")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Iowa HS: no games extracted. debug={debug_str[:400]}"
-        )
+        return {
+            'success': False,
+            'mainTeam': None,
+            'mainCity': None,
+            'mainState': 'IA',
+            'games': [],
+            'gameCount': 0,
+        }
 
     school_game_counts = {s: len(g) for s, g in games_by_school.items()}
 
@@ -1082,41 +1064,32 @@ async def extract_schedule(file: UploadFile = File(...), school: Optional[str] =
         pdf_file.seek(0)
 
         # Detect and route to correct extractor
-        detected_format = "unknown"
         if detect_cif_bracket_format(first_page_text):
-            detected_format = "cif_bracket"
+            print("[PDF Extract] Detected CIF bracket format")
             result = extract_cif_bracket_format(pdf_file)
         elif detect_iowa_hs_format(first_page_text):
-            detected_format = "iowa_hs"
-            try:
-                result = extract_iowa_hs_format(pdf_file, school_filter=school)
-            except HTTPException:
-                raise  # Let HTTPExceptions pass through (e.g., debug output)
-            except Exception as iowa_err:
-                raise HTTPException(status_code=400, detail=f"Iowa HS extractor crashed: {type(iowa_err).__name__}: {iowa_err}")
+            print(f"[PDF Extract] Detected Iowa HS format (school filter: {school})")
+            result = extract_iowa_hs_format(pdf_file, school_filter=school)
         elif detect_schedule_star_format(first_page_text):
-            detected_format = "schedule_star"
+            print("[PDF Extract] Detected Schedule Star format")
             result = extract_schedule_star_format(pdf_file)
         elif detect_texas_isd_format(first_page_text):
-            detected_format = "texas_isd"
+            print(f"[PDF Extract] Detected Texas ISD format (school filter: {school})")
             result = extract_texas_isd_format(pdf_file, school_filter=school)
         else:
-            detected_format = "maxpreps_fallback"
+            print("[PDF Extract] Trying MaxPreps format")
             result = extract_maxpreps_schedule(pdf_file)
-        print(f"[PDF Extract] format={detected_format} gameCount={result.get('gameCount')} reqSchool={result.get('requiresSchoolSelection')}")
 
-        # If no games found, try table extraction fallback (skip for known formats and school selection)
-        if result['gameCount'] == 0 and not result.get('requiresSchoolSelection') and detected_format == 'maxpreps_fallback':
+        # If no games found with MaxPreps, try table extraction fallback
+        if result['gameCount'] == 0 and not result.get('requiresSchoolSelection'):
             pdf_file.seek(0)
             result = extract_table_schedule(pdf_file)
 
         # Validate game count (skip if awaiting school selection)
         if result['gameCount'] == 0 and not result.get('requiresSchoolSelection'):
-            print(f"[PDF Extract] No games found. File size: {len(content)} bytes, filename: {file.filename}")
-            print(f"[PDF Extract] First page text (first 200 chars): {first_page_text[:200] if first_page_text else 'EMPTY'}")
             raise HTTPException(
                 status_code=400,
-                detail=f"No games found. ver={SERVICE_VERSION} format={detected_format} result_keys={list(result.keys())} full_result={str(result)[:500]}"
+                detail="No games found in PDF. This can happen with scanned or image-based PDFs."
             )
 
         if result['gameCount'] > MAX_GAMES:
