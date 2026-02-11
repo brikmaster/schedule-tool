@@ -674,6 +674,26 @@ def detect_iowa_hs_format(text: str) -> bool:
     return sum(bool(x) for x in indicators) >= 3
 
 
+IOWA_CITY_FIRST = {
+    'Des Moines', 'Iowa City', 'Sioux City', 'Council Bluffs',
+    'Cedar Rapids', 'Davenport', 'Dubuque', 'Waterloo',
+}
+
+
+def _parse_iowa_team_name(raw: str) -> tuple:
+    """Parse Iowa-style 'City, School' or 'School, City' into (team_name, city).
+    Returns (raw, None) for names without commas.
+    """
+    if ',' not in raw:
+        return (raw, None)
+    before, after = raw.split(',', 1)
+    before = before.strip()
+    after = after.strip()
+    if before in IOWA_CITY_FIRST:
+        return (after, before)
+    return (before, after)
+
+
 def _parse_iowa_date(date_text: str, year: int) -> Optional[str]:
     """Convert 'Aug. 29' or 'Sept. 5' to 'MM/DD/YYYY'."""
     month_map = {
@@ -818,23 +838,31 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
                             continue
 
                         is_away = opponent_text.lower().startswith('at ')
-                        opponent = re.sub(r'^at\s+', '', opponent_text, flags=re.IGNORECASE).strip()
+                        opponent_raw = re.sub(r'^at\s+', '', opponent_text, flags=re.IGNORECASE).strip()
+
+                        # Parse comma-separated names into (team, city)
+                        school_clean, school_city = _parse_iowa_team_name(school_name)
+                        opp_clean, opp_city = _parse_iowa_team_name(opponent_raw)
 
                         if is_away:
-                            home_team = opponent
-                            away_team = school_name
+                            home_team = opp_clean
+                            away_team = school_clean
+                            home_city = opp_city
+                            away_city = school_city
                         else:
-                            home_team = school_name
-                            away_team = opponent
+                            home_team = school_clean
+                            away_team = opp_clean
+                            home_city = school_city
+                            away_city = opp_city
 
                         game = {
                             'date': game_date,
                             'time': None,
                             'homeTeam': home_team,
                             'awayTeam': away_team,
-                            'homeCity': None,
+                            'homeCity': home_city,
                             'homeState': 'IA',
-                            'awayCity': None,
+                            'awayCity': away_city,
                             'awayState': 'IA',
                             'homeScore': None,
                             'awayScore': None,
