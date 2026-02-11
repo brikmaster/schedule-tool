@@ -32,7 +32,7 @@ export type SegmentType =
 export type TeamStatus = "pending" | "matched" | "ambiguous" | "not_found";
 export type GameStatus = "ready" | "ambiguous" | "error";
 export type SubmissionState = "idle" | "submitting" | "complete";
-export type SubmissionStatus = "created" | "duplicate" | "failed";
+export type SubmissionStatus = "created" | "duplicate" | "scored" | "failed";
 
 // Application State
 export interface AppState {

@@ -1,7 +1,7 @@
 import React from "react";
 
 interface StatusBadgeProps {
-  status: "ready" | "ambiguous" | "error" | "created" | "duplicate" | "failed";
+  status: "ready" | "ambiguous" | "error" | "created" | "duplicate" | "scored" | "failed";
 }
 
 export default function StatusBadge({ status }: StatusBadgeProps) {
@@ -35,6 +35,12 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
       bg: "bg-orange-50",
       border: "border-orange-200",
       text: "Duplicate",
+    },
+    scored: {
+      color: "#7c3aed",
+      bg: "bg-purple-50",
+      border: "border-purple-200",
+      text: "Score Updated",
     },
     failed: {
       color: "var(--ss-error)",

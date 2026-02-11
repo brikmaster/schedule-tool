@@ -53,6 +53,7 @@ export default function SubmissionResults() {
 
   const results = state.submission.results;
   const created = results.filter((r) => r.status === "created").length;
+  const scored = results.filter((r) => r.status === "scored").length;
   const duplicates = results.filter((r) => r.status === "duplicate").length;
   const failed = results.filter((r) => r.status === "failed").length;
 
@@ -78,13 +79,21 @@ export default function SubmissionResults() {
       {!submitting && state.submission.state === "complete" && (
         <div>
           {/* Summary */}
-          <div className="mb-8 grid grid-cols-3 gap-4">
+          <div className="mb-8 grid grid-cols-4 gap-4">
             <div className="p-4 bg-green-50 border border-[var(--ss-success)] rounded text-center">
               <div className="text-3xl font-bold text-[var(--ss-success)]">
                 {created}
               </div>
               <div className="text-sm text-[var(--ss-text-light)] mt-1">
                 Created
+              </div>
+            </div>
+            <div className="p-4 bg-purple-50 border border-purple-300 rounded text-center">
+              <div className="text-3xl font-bold text-purple-600">
+                {scored}
+              </div>
+              <div className="text-sm text-[var(--ss-text-light)] mt-1">
+                Score Updated
               </div>
             </div>
             <div className="p-4 bg-orange-50 border border-[var(--ss-warning)] rounded text-center">

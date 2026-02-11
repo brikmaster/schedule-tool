@@ -203,21 +203,19 @@ export function useGameSubmission() {
           game.awayScore !== null &&
           game.awayScore !== undefined;
 
-        if (hasScores && !isDuplicate) {
+        let scoreAdded = false;
+        if (hasScores) {
           try {
-            // First, fetch the game to get the correct segment IDs
             const gameDetails = await getGame({
               gameIds: [response.result.gameId],
             });
 
-            // Check if response has the expected structure
             if (!gameDetails?.result?.collections?.gameCollection?.list?.[0]) {
               throw new Error(`Invalid API response structure`);
             }
 
-            // Get the game data from the actual response structure
-            const gameData = gameDetails.result.collections.gameCollection.list[0];
-            const boxScores = gameData.boxScores || [];
+            const fetchedGame = gameDetails.result.collections.gameCollection.list[0];
+            const boxScores = fetchedGame.boxScores || [];
 
             if (boxScores.length === 0) {
               throw new Error("No game segments found in boxScores");
@@ -225,22 +223,29 @@ export function useGameSubmission() {
 
             const selection = selectFinalSegment(boxScores);
 
-            const scoreResponse = await addScore({
+            await addScore({
               accessToken: process.env.NEXT_PUBLIC_SCORESTREAM_ACCESS_TOKEN || "",
               gameId: response.result.gameId,
               homeTeamScore: game.homeScore!,
               awayTeamScore: game.awayScore!,
               gameSegmentId: selection.gameSegmentId,
             });
+            scoreAdded = true;
           } catch (scoreError) {
             console.error(`Failed to add score for game ${response.result.gameId}:`, scoreError);
-            // Continue even if score fails - game is still created
           }
+        }
+
+        let status: SubmissionStatus;
+        if (isDuplicate) {
+          status = scoreAdded ? "scored" : "duplicate";
+        } else {
+          status = "created";
         }
 
         results.push({
           gameRowId: game.id,
-          status: isDuplicate ? "duplicate" : "created",
+          status,
           gameId: gameId,
           gameUrl: gameUrl,
         });
