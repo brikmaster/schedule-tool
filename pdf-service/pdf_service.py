@@ -877,7 +877,7 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
 
                         game = {
                             'date': game_date,
-                            'time': None,
+                            'time': '7:00 PM',
                             'homeTeam': home_team,
                             'awayTeam': away_team,
                             'homeCity': home_city,
