@@ -189,6 +189,9 @@ export default function FileUpload() {
                 className="w-full px-4 py-2 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">-- Choose a school --</option>
+                <option value="__all__">
+                  All Schools ({availableSchools.reduce((sum, s) => sum + s.gameCount, 0)} games)
+                </option>
                 {availableSchools.map((school) => (
                   <option key={school.name} value={school.name}>
                     {school.name} ({school.gameCount} games)

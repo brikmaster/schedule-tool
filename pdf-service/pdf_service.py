@@ -873,6 +873,34 @@ def extract_iowa_hs_format(pdf_file: io.BytesIO, school_filter: Optional[str] = 
             'gameCount': 0,
         }
 
+    # All schools: combine and deduplicate
+    if school_filter == '__all__':
+        seen = set()
+        all_games = []
+        for school_games in games_by_school.values():
+            for g in school_games:
+                key = (g['date'], g['homeTeam'], g['awayTeam'])
+                if key not in seen:
+                    seen.add(key)
+                    all_games.append(g)
+        def _date_sort_key(g):
+            parts = g['date'].split('/')
+            return (int(parts[2]), int(parts[0]), int(parts[1]))
+        all_games.sort(key=_date_sort_key)
+        print(f"[Iowa HS] Extracted {len(all_games)} unique games (all schools)")
+        return {
+            'success': True,
+            'mainTeam': 'All Schools',
+            'mainCity': None,
+            'mainState': 'IA',
+            'games': all_games,
+            'gameCount': len(all_games),
+            'availableSchools': [
+                {'name': s, 'gameCount': c}
+                for s, c in sorted(school_game_counts.items())
+            ],
+        }
+
     games = games_by_school.get(school_filter, [])
     if not games:
         return {
